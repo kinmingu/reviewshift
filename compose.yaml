@@ -1,0 +1,23 @@
+name: reviewshift
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.6-pg17-trixie
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-reviewshift}
+      POSTGRES_USER: ${POSTGRES_USER:-reviewshift}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reviewshift_dev_only}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - reviewshift_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-reviewshift} -d ${POSTGRES_DB:-reviewshift}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  reviewshift_postgres_data:
+

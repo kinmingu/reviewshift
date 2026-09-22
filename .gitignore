@@ -1,0 +1,39 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Local datasets, model files, and generated artifacts
+data/
+models/
+artifacts/
+downloads/
+postgres-data/
+*.jsonl
+*.jsonl.gz
+*.parquet
+*.arrow
+*.safetensors
+*.onnx
+*.gguf
+*.pt
+*.pth
+
+# Local application state
+.streamlit/secrets.toml
+*.log
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
