@@ -1,0 +1,70 @@
+{
+  "source": "McAuley-Lab/Amazon-Reviews-2023",
+  "source_category": "Appliances",
+  "selection_basis": "Full pinned Appliances review scan; adjacent completed months each have at least 30 eligible reviews. Three high-volume products were chosen with different product types and up to 12 months of history.",
+  "products": [
+    {
+      "parent_asin": "B0B3DB5HTC",
+      "baseline_month": "2020-04",
+      "target_month": "2020-05",
+      "import_start_month": "2019-06",
+      "import_end_month": "2020-05",
+      "monthly_counts": {
+        "2019-06": 197,
+        "2019-07": 255,
+        "2019-08": 180,
+        "2019-09": 193,
+        "2019-10": 255,
+        "2019-11": 261,
+        "2019-12": 314,
+        "2020-01": 362,
+        "2020-02": 349,
+        "2020-03": 207,
+        "2020-04": 503,
+        "2020-05": 694
+      }
+    },
+    {
+      "parent_asin": "B0C57WMPJQ",
+      "baseline_month": "2022-07",
+      "target_month": "2022-08",
+      "import_start_month": "2021-09",
+      "import_end_month": "2022-08",
+      "monthly_counts": {
+        "2021-09": 82,
+        "2021-10": 73,
+        "2021-11": 36,
+        "2021-12": 53,
+        "2022-01": 63,
+        "2022-02": 56,
+        "2022-03": 105,
+        "2022-04": 119,
+        "2022-05": 166,
+        "2022-06": 254,
+        "2022-07": 371,
+        "2022-08": 407
+      }
+    },
+    {
+      "parent_asin": "B07WTXWC32",
+      "baseline_month": "2021-03",
+      "target_month": "2021-04",
+      "import_start_month": "2020-05",
+      "import_end_month": "2021-04",
+      "monthly_counts": {
+        "2020-05": 101,
+        "2020-06": 216,
+        "2020-07": 158,
+        "2020-08": 217,
+        "2020-09": 206,
+        "2020-10": 200,
+        "2020-11": 184,
+        "2020-12": 188,
+        "2021-01": 205,
+        "2021-02": 136,
+        "2021-03": 283,
+        "2021-04": 247
+      }
+    }
+  ]
+}

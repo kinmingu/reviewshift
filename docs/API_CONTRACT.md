@@ -1,19 +1,53 @@
-# ReviewShift 단계 1 API 계약
+# ReviewShift API 계약
 
-기본 주소는 `http://localhost:8000`, API prefix는 `/api/v1`이다. 모든 상품·리뷰 응답은 현재 `source_mode: fixture`로 표시된다.
+기본 경로는 `/api/v1`이다. 모든 목록 응답과 레코드는 `source_mode`가 `fixture` 또는 `real`인지 명시한다.
 
-| Method | Path | 설명 |
-|---|---|---|
-| GET | `/health` | 프로세스와 DB 연결 상태 |
-| GET | `/api/v1/categories` | 준비된 카테고리 목록 |
-| GET | `/api/v1/products` | `query`, `category`, `page`, `page_size` 상품 검색 |
-| GET | `/api/v1/products/{id}` | 상품 정보와 실제 데이터에 존재하는 월 |
-| GET | `/api/v1/products/{id}/comparison` | `target_month`, `baseline_month` 월간 비교 |
-| GET | `/api/v1/products/{id}/reviews` | `month`, 선택적 `aspect`, `polarity`, pagination |
+## GET `/health`
 
-월 형식은 `YYYY-MM`이며 범위는 UTC 기준 `[월초, 다음 월초)`다. 존재하지 않는 상품은 404, 잘못된 입력은 422다. 리뷰가 없거나 분류가 덜 된 월은 성공 응답 안에 `status: insufficient_data`, 빈 `issues`와 실제 coverage를 반환한다.
+API와 DB 연결 상태를 반환한다.
 
-비율은 0~1이고 `change_pp`만 퍼센트포인트다. 집계는 분석 가능 리뷰 분모와 `COUNT(DISTINCT review_id)`를 사용한다. 응답의 `evidence_review_ids`는 실제 fixture 리뷰 ID다.
+## GET `/api/v1/categories`
 
-`POST /api/v1/chat`은 단계 1 범위가 아니므로 제공하지 않는다. Streamlit에도 미구현 상태로 표시하며 가짜 답변을 만들지 않는다.
+쿼리:
+
+- `source_mode`: `fixture|real`, 생략 시 서버 기본값
+
+선택한 출처에 존재하는 카테고리만 반환한다.
+
+## GET `/api/v1/products`
+
+쿼리:
+
+- `query`: 상품명 또는 parent_asin 부분 검색
+- `category`: 정확한 카테고리
+- `source_mode`: `fixture|real`, 생략 시 서버 기본값
+- `page`, `page_size`
+
+fixture와 실제 데이터는 한 목록에서 섞이지 않는다.
+
+## GET `/api/v1/products/{product_id}`
+
+상품 메타데이터, 저장된 전체 리뷰 수, 사용 가능한 월과 `monthly_stats`를 반환한다. `monthly_stats`의 각 항목은 다음을 포함한다.
+
+- `month`: `YYYY-MM`
+- `review_count`: DB의 적격·중복 제거 리뷰 수
+- `average_rating`: DB 리뷰 별점 평균
+
+## GET `/api/v1/products/{product_id}/reviews`
+
+쿼리:
+
+- `month`: 필수 `YYYY-MM`
+- `aspect`, `polarity`: fixture 분류 결과 필터(선택)
+- `page`, `page_size`
+
+실제 리뷰는 `labels: []`로 반환한다. 이는 불만 0건이나 정상 판정이 아니라 아직 분류하지 않았다는 뜻이다.
+
+## GET `/api/v1/products/{product_id}/comparison`
+
+쿼리:
+
+- `target_month`, `baseline_month`: 필수 `YYYY-MM`
+
+`coverage`에는 두 월의 리뷰 수, 분류된 리뷰 수, 평균 별점이 포함된다. 실제 상품은 현재 `status: insufficient_data`, `issues: []`, `analysis_version: not-analyzed`를 반환한다. 실제 리뷰의 수와 평균 별점은 DB에서 계산하지만 항목별 불만률은 분류 전이므로 만들지 않는다.
 

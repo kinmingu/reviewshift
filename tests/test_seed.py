@@ -8,8 +8,18 @@ from backend.app.models import Product, Review, ReviewLabel
 def _counts() -> tuple[int, int, int]:
     with SessionLocal() as session:
         return (
-            int(session.scalar(select(func.count(Product.id))) or 0),
-            int(session.scalar(select(func.count(Review.id))) or 0),
+            int(
+                session.scalar(
+                    select(func.count(Product.id)).where(Product.source_mode == "fixture")
+                )
+                or 0
+            ),
+            int(
+                session.scalar(
+                    select(func.count(Review.id)).where(Review.source_mode == "fixture")
+                )
+                or 0
+            ),
             int(session.scalar(select(func.count(ReviewLabel.id))) or 0),
         )
 

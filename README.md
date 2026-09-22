@@ -1,30 +1,26 @@
 # ReviewShift
 
-상품을 검색하거나 카테고리로 탐색하고, 두 완료 월의 리뷰 평가 변화를 실제 근거 리뷰와 함께 비교하는 서비스다. 현재 **단계 0과 단계 1**이 구현되어 있다.
+상품을 검색하거나 카테고리로 찾아 들어가 월별 리뷰 변화를 비교하는 서비스다. 현재 가이드의 단계 0·1과 단계 2의 실제 Amazon 데이터 조사·선정·적재까지 구현되어 있다.
 
-현재 데이터는 전부 합성 fixture다. 화면과 API의 `source_mode`가 이를 명시하며 실제 Amazon 데이터나 AI 분석 결과가 아니다.
+## 현재 구현
 
-## 구현 범위
+- FastAPI 상품 검색·카테고리·상세·리뷰·기간 비교 API
+- PostgreSQL 17 + pgvector 0.8.6, SQLAlchemy, Alembic
+- Streamlit 상품 목록·상세·월별 리뷰 수·평균 별점·리뷰 원문 화면
+- 합성 fixture 3개 상품과 별도로 관리되는 실제 Amazon Appliances 상품 3개
+- 실제 상품 7,801개 리뷰(선정한 각 12개월, 정확 중복 제거 후)
+- 실제 데이터는 분류 라벨이 없으며 항목별 불만률을 `분석 전`으로 표시
+- AI 질문은 미구현 상태이며 가짜 응답을 만들지 않음
 
-- FastAPI 상품 검색·카테고리·상세·리뷰·월간 비교 API
-- PostgreSQL 17 + pgvector 0.8.6, SQLAlchemy 모델과 Alembic 마이그레이션
-- 상품 3개, 2025-01/2025-02 리뷰 36개, 사전 라벨 43개의 멱등 fixture seed
-- `COUNT(DISTINCT review_id)`와 실제 월 분모를 사용하는 SQL 집계
-- Streamlit 상품 카드·상세·월 선택·비교표·근거 리뷰 화면
-- 분모 0, 과거 건수 0, 중복 라벨, 404/422, 검색/pagination 테스트
-- AI 질문은 미구현 상태로 표시
+API 계약은 [docs/API_CONTRACT.md](docs/API_CONTRACT.md), 데이터 조사 내용은 [docs/data_audit.md](docs/data_audit.md)를 참고한다.
 
-API 계약은 [docs/API_CONTRACT.md](docs/API_CONTRACT.md), 설계 원칙은 [docs/PROJECT_SPEC.md](docs/PROJECT_SPEC.md)를 참고한다.
+## 준비 환경
 
-## 준비된 환경
+- Windows 64-bit, Python 3.12
+- Docker Desktop + WSL 2
+- PostgreSQL 17 + pgvector 0.8.6
 
-- Windows 64-bit, Python 3.12.10
-- WSL 2.7.14, Docker Desktop 4.91.0
-- PostgreSQL 17.11 + pgvector 0.8.6
-
-## 처음 실행
-
-PowerShell에서 프로젝트 루트를 기준으로 실행한다.
+PowerShell에서 프로젝트 루트로 이동해 실행한다.
 
 ```powershell
 python -m venv .venv
@@ -32,21 +28,32 @@ python -m venv .venv
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install -r requirements.txt
 Copy-Item .env.example .env
-```
-
-이미 `.venv`와 `.env`가 있으면 다시 만들 필요가 없다. `.env`의 기본 암호는 로컬 개발 전용이며 공유·배포 환경에서는 변경해야 한다.
-
-DB를 시작하고 스키마와 fixture를 준비한다.
-
-```powershell
 docker compose up -d db
 .\.venv\Scripts\alembic.exe -c backend/alembic.ini upgrade head
 .\.venv\Scripts\python.exe -m scripts.seed_fixtures
 ```
 
-seed는 같은 ID를 갱신하므로 여러 번 실행해도 상품·리뷰·라벨 중복이 생기지 않는다.
+`.env`에는 실제 비밀 값을 저장할 수 있으므로 Git에 포함하지 않는다.
 
-## 서버 실행
+## 실제 Appliances 데이터 준비
+
+건조 실행으로 정확한 대상과 크기를 먼저 확인한다.
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.download_amazon_appliances
+```
+
+명시적으로 다운로드하고 전체 데이터를 프로파일링한 뒤 선정된 상품만 적재한다.
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.download_amazon_appliances --execute
+.\.venv\Scripts\python.exe -m scripts.profile_amazon_appliances
+.\.venv\Scripts\python.exe -m scripts.import_amazon_appliances
+```
+
+다운로드 대상은 고정 리비전의 Parquet 3개, 총 488,307,356바이트다. 원본과 조사 산출물은 `data/` 아래에 저장되고 Git으로 추적하지 않는다. 가져오기는 동일 입력으로 다시 실행해도 리뷰가 중복 저장되지 않는다.
+
+## 실행
 
 첫 번째 PowerShell:
 
@@ -63,11 +70,9 @@ seed는 같은 ID를 갱신하므로 여러 번 실행해도 상품·리뷰·라
 .\.venv\Scripts\python.exe -m streamlit run frontend_streamlit\app.py --server.address 127.0.0.1 --server.port 8501
 ```
 
-- 화면: `http://127.0.0.1:8501`
+브라우저에서 `http://127.0.0.1:8501`을 열고 `실제 Amazon 데이터`를 선택한다. 다른 PC에 공개하는 배포 설정은 이번 단계의 범위가 아니다.
 
-## 검사와 테스트
-
-Docker DB가 실행 중이어야 한다. 테스트는 Alembic을 head까지 적용하고 결정적 fixture를 다시 seed한다.
+## 검증
 
 ```powershell
 .\.venv\Scripts\ruff.exe check .
@@ -75,20 +80,11 @@ Docker DB가 실행 중이어야 한다. 테스트는 Alembic을 head까지 적�
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-## 운영 명령
+## 아직 하지 않은 작업
 
-```powershell
-docker compose ps
-docker compose stop db
-docker compose start db
-```
-
-Docker 볼륨 삭제는 로컬 DB 데이터를 제거하므로 일반 실행 절차에 포함하지 않는다.
-
-## 현재 한계
-
-- 실제 Amazon 데이터, 임베딩, RAG, Agent, React는 구현하지 않았다.
-- `POST /api/v1/chat`은 제공하지 않으며 UI의 질문 입력도 비활성화되어 있다.
-- fixture의 사전 라벨은 모델 예측이 아니며 성능 측정값으로 사용할 수 없다.
-- 로컬 PC 자원상 Qwen3-14B는 제외한다. 모델 선택은 실제 데이터 분류 단계에서 별도 검증한다.
+- LLM 기반 항목·극성 분류
+- RAG, Agent, AI 질문 API
+- React 전환
+- 전체 Amazon 데이터 수집이나 모델 가중치 다운로드
+- 외부 공개 배포와 운영 보안 설정
 

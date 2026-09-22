@@ -34,10 +34,17 @@ class ProductListResponse(BaseModel):
     source_mode: SourceMode
 
 
+class MonthlyReviewStat(BaseModel):
+    month: str
+    review_count: int
+    average_rating: float
+
+
 class ProductDetail(ProductSummary):
     source: str
     parent_asin: str
     metadata: dict[str, object]
+    monthly_stats: list[MonthlyReviewStat]
 
 
 class ReviewLabelResponse(BaseModel):
@@ -71,6 +78,8 @@ class CoverageResponse(BaseModel):
     target_labeled: int
     baseline_total: int
     baseline_labeled: int
+    target_average_rating: float | None
+    baseline_average_rating: float | None
 
 
 class ComparisonIssue(BaseModel):
@@ -99,4 +108,3 @@ class ComparisonResponse(BaseModel):
     analysis_version: str
 
     model_config = ConfigDict(from_attributes=True)
-

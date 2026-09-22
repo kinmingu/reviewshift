@@ -15,7 +15,9 @@ class ApiError(RuntimeError):
 
 class ReviewShiftClient:
     def __init__(self, base_url: str | None = None, timeout: float = 10.0) -> None:
-        self.base_url = (base_url or os.getenv("API_BASE_URL", "http://localhost:8000")).rstrip("/")
+        self.base_url = (
+            base_url or os.getenv("API_BASE_URL", "http://localhost:8000")
+        ).rstrip("/")
         self.timeout = timeout
         self._client = httpx.Client(base_url=self.base_url, timeout=self.timeout)
 
@@ -33,11 +35,13 @@ class ReviewShiftClient:
     def health(self) -> dict[str, Any]:
         return self._get("/health")
 
-    def categories(self) -> dict[str, Any]:
-        return self._get("/api/v1/categories")
+    def categories(self, source_mode: str = "fixture") -> dict[str, Any]:
+        return self._get("/api/v1/categories", {"source_mode": source_mode})
 
-    def products(self, query: str = "", category: str = "") -> dict[str, Any]:
-        params = {"page": 1, "page_size": 100}
+    def products(
+        self, query: str = "", category: str = "", source_mode: str = "fixture"
+    ) -> dict[str, Any]:
+        params = {"page": 1, "page_size": 100, "source_mode": source_mode}
         if query:
             params["query"] = query
         if category:

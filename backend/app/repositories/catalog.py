@@ -18,19 +18,37 @@ class LabelAggregate:
     review_ids: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class MonthlyReviewAggregate:
+    month: str
+    review_count: int
+    average_rating: float
+
+
 class ProductRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def categories(self) -> list[str]:
+    def categories(self, source_mode: str) -> list[str]:
         return list(
-            self.session.scalars(select(Product.category).distinct().order_by(Product.category))
+            self.session.scalars(
+                select(Product.category)
+                .where(Product.source_mode == source_mode)
+                .distinct()
+                .order_by(Product.category)
+            )
         )
 
     def list(
-        self, *, query: str | None, category: str | None, page: int, page_size: int
+        self,
+        *,
+        query: str | None,
+        category: str | None,
+        source_mode: str,
+        page: int,
+        page_size: int,
     ) -> tuple[list[Product], int]:
-        filters = []
+        filters = [Product.source_mode == source_mode]
         if query:
             pattern = f"%{query.strip()}%"
             filters.append(or_(Product.title.ilike(pattern), Product.parent_asin.ilike(pattern)))
@@ -62,15 +80,22 @@ class ProductRepository:
         )
 
     def available_months(self, product_id: str) -> list[str]:
+        return [item.month for item in self.monthly_stats(product_id)]
+
+    def monthly_stats(self, product_id: str) -> list[MonthlyReviewAggregate]:
         month = func.to_char(func.date_trunc("month", Review.reviewed_at), "YYYY-MM")
-        return list(
-            self.session.scalars(
-                select(month)
+        rows = self.session.execute(
+            select(month, func.count(Review.id), func.avg(Review.rating))
                 .where(Review.product_id == product_id, Review.eligible.is_(True))
-                .distinct()
+                .group_by(month)
                 .order_by(month)
+        ).all()
+        return [
+            MonthlyReviewAggregate(
+                month=row[0], review_count=int(row[1]), average_rating=float(row[2])
             )
-        )
+            for row in rows
+        ]
 
 
 class ReviewRepository:
@@ -89,6 +114,19 @@ class ReviewRepository:
             )
             or 0
         )
+
+    def average_rating(
+        self, product_id: str, start: datetime, end: datetime
+    ) -> float | None:
+        value = self.session.scalar(
+            select(func.avg(Review.rating)).where(
+                Review.product_id == product_id,
+                Review.eligible.is_(True),
+                Review.reviewed_at >= start,
+                Review.reviewed_at < end,
+            )
+        )
+        return float(value) if value is not None else None
 
     def count_labeled(
         self, product_id: str, start: datetime, end: datetime, run_id: str

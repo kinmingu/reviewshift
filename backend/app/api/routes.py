@@ -26,6 +26,7 @@ DbSession = Annotated[Session, Depends(get_db)]
 Page = Annotated[int, Query(ge=1)]
 PageSize = Annotated[int, Query(ge=1, le=100)]
 Month = Annotated[str, Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]
+SourceModeParam = Annotated[str, Query(pattern=r"^(fixture|real)$")]
 
 
 def _service(session: Session) -> CatalogService:
@@ -49,10 +50,12 @@ def health(session: DbSession) -> HealthResponse:
 
 
 @router.get("/api/v1/categories", response_model=CategoryListResponse)
-def categories(session: DbSession) -> CategoryListResponse:
-    settings = get_settings()
+def categories(
+    session: DbSession, source_mode: SourceModeParam | None = None
+) -> CategoryListResponse:
+    selected_mode = source_mode or get_settings().source_mode
     return CategoryListResponse(
-        items=_service(session).categories(), source_mode=settings.source_mode
+        items=_service(session).categories(selected_mode), source_mode=selected_mode
     )
 
 
@@ -61,19 +64,25 @@ def products(
     session: DbSession,
     query: str | None = Query(default=None, max_length=200),
     category: str | None = Query(default=None, max_length=120),
+    source_mode: SourceModeParam | None = None,
     page: Page = 1,
     page_size: PageSize = 20,
 ) -> ProductListResponse:
     service = _service(session)
+    selected_mode = source_mode or get_settings().source_mode
     items, total = service.list_products(
-        query=query, category=category, page=page, page_size=page_size
+        query=query,
+        category=category,
+        source_mode=selected_mode,
+        page=page,
+        page_size=page_size,
     )
     return ProductListResponse(
         items=items,
         page=page,
         page_size=page_size,
         total=total,
-        source_mode=get_settings().source_mode,
+        source_mode=selected_mode,
     )
 
 
@@ -134,4 +143,3 @@ def reviews(
         total=total,
         source_mode=source_mode,
     )
-

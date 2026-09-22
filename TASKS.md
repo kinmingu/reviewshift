@@ -1,49 +1,38 @@
 # ReviewShift 작업 현황
 
-기준일: 2026-09-22
+## 단계 0 — 기준선 확정
 
-## 단계 0 — 환경과 범위
+- [x] 프로젝트 문서와 폴더 구조
+- [x] FastAPI / Streamlit / PostgreSQL + pgvector 실행 환경
+- [x] API 계약과 데이터 출처 구분 원칙
 
-- [x] 원본 가이드와 저장소 상태 확인
-- [x] Windows 및 Python 3.12 확인
-- [x] 프로젝트 로컬 `.venv` 생성
-- [x] 단계 1용 Python 의존성 설치와 버전 고정
-- [x] PostgreSQL 17 + pgvector 0.8.6 Compose 구성 작성
-- [x] `.env.example`, `.gitignore`, 프로젝트 규칙 작성
-- [x] WSL 2.7.14 및 Linux 커널 6.18 설치
-- [x] Docker Desktop 4.91.0 설치, Docker 엔진/CLI/Compose 확인
-- [x] PostgreSQL 17 + pgvector 0.8.6 이미지 다운로드 및 DB health check
-- [x] PostgreSQL `vector` 확장 활성화 확인
-- [x] RAM/CPU/GPU 상세 확인
+## 단계 1 — 합성 데이터 MVP
 
-## 단계 1 — 세로 연결
+- [x] SQLAlchemy 모델과 초기 Alembic 마이그레이션
+- [x] 합성 상품 3개, 리뷰 36개, 분류 라벨 43개
+- [x] 상품 검색·상세·리뷰·기간 비교 API
+- [x] Streamlit 목록·상세·월별 비교 화면
+- [x] 집계·API·UI 기본 테스트
 
-- [x] FastAPI/schema/model/repository/service 디렉터리와 설정 구성
-- [x] Alembic 초기 마이그레이션과 `vector` 확장 활성화
-- [x] 합성 상품 3개 및 두 달치 fixture 리뷰/라벨 seed
-- [x] 조회·비교·리뷰 API 구현
-- [x] Streamlit HTTP 클라이언트와 핵심 화면 구현
-- [x] 통계·API·Streamlit 기본 테스트 작성
-- [x] seed 재실행 후 상품 3·리뷰 36·라벨 43 유지 확인
-- [x] Ruff, Alembic schema check, pytest 통과
+## 단계 2 — 실제 Amazon Appliances 데이터
 
-## 다음 단계 — 단계 2 실제 데이터 조사
+- [x] 로컬 Git 저장소 초기화 및 원본·환경·모델 파일 제외
+- [x] 공식 배포 위치, 형식, 크기, 접근 방식, 이용 안내 조사
+- [x] Range 요청을 이용한 6.3MB 소량 표본 조사
+- [x] 고정 리비전 Parquet 3개 488,307,356바이트 다운로드 및 해시 기록
+- [x] 리뷰 2,128,605건 전체 프로파일링
+- [x] timestamp(ms), parent_asin/asin, 결측, 정확 중복 점검
+- [x] 완료된 인접 두 달 각각 30건 이상을 초기 기준으로 후보 생성
+- [x] 실제 상품 3개 선정, 최대 12개월 리뷰 7,801건 적재
+- [x] 실제 데이터와 fixture 검색·집계 분리
+- [x] 멱등 재적재(두 번째 실행 신규 리뷰 0건)
+- [x] 월별 리뷰 수·평균 별점·원문 리뷰 API 및 Streamlit 표시
+- [x] 실제 리뷰 미분류 상태를 `분석 전`으로 표시
+- [x] 날짜·월 경계·중복·fixture 분리·미분류 회귀 테스트
 
-- [ ] Amazon Reviews 2023 원천 파일·압축 크기·이용 조건 확인
-- [ ] 제한된 샘플로 스키마와 timestamp 단위 검증
-- [ ] 후보 상품별 월간 리뷰 수 조사 및 `docs/data_audit.md` 작성
-- [ ] 큰 다운로드 전에 범위·용량·예상 시간을 제시하고 승인 확인
-- [ ] 승인된 상품 3개만 멱등적으로 가져오고 fixture와 분리
+## 이후 단계
 
-## 이번에 제외
-
-- 실제 Amazon 데이터 및 대용량 원본 다운로드
-- BGE-M3/Qwen 모델 가중치, RAG, LangGraph Agent
-- React UI, 외부 배포, 유료 API
-
-## 확인된 개발 PC
-
-- CPU: AMD Ryzen 5 5500U, 6코어/12스레드
-- RAM: 13.8GB
-- GPU: AMD Radeon Graphics, 표시 메모리 2GB
-- 판단: Qwen3-14B 로컬 실행에는 부적합하며 8B도 메모리와 속도 검증이 필요하다. 단계 3 전에는 모델 가중치를 받지 않는다.
+- [ ] 실제 리뷰 LLM 분류 및 품질 평가
+- [ ] 임베딩·RAG·Agent
+- [ ] React 전환
+- [ ] 외부 공개 배포

@@ -10,6 +10,7 @@ from backend.app.schemas.catalog import (
     ComparisonIssue,
     ComparisonResponse,
     CoverageResponse,
+    MonthlyReviewStat,
     ProductDetail,
     ProductSummary,
     ReviewLabelResponse,
@@ -32,14 +33,24 @@ class CatalogService:
         self.reviews = ReviewRepository(session)
         self.runs = AnalysisRunRepository(session)
 
-    def categories(self) -> list[str]:
-        return self.products.categories()
+    def categories(self, source_mode: str) -> list[str]:
+        return self.products.categories(source_mode)
 
     def list_products(
-        self, *, query: str | None, category: str | None, page: int, page_size: int
+        self,
+        *,
+        query: str | None,
+        category: str | None,
+        source_mode: str,
+        page: int,
+        page_size: int,
     ) -> tuple[list[ProductSummary], int]:
         products, total = self.products.list(
-            query=query, category=category, page=page, page_size=page_size
+            query=query,
+            category=category,
+            source_mode=source_mode,
+            page=page,
+            page_size=page_size,
         )
         return [self._summary(product) for product in products], total
 
@@ -51,6 +62,14 @@ class CatalogService:
             source=product.source,
             parent_asin=product.parent_asin,
             metadata=product.metadata_json,
+            monthly_stats=[
+                MonthlyReviewStat(
+                    month=item.month,
+                    review_count=item.review_count,
+                    average_rating=item.average_rating,
+                )
+                for item in self.products.monthly_stats(product.id)
+            ],
         )
 
     def compare(
@@ -59,14 +78,42 @@ class CatalogService:
         product = self._require_product(product_id)
         target_start, target_end = month_bounds(target_month)
         baseline_start, baseline_end = month_bounds(baseline_month)
-        run = self.runs.latest_completed()
-        if run is None:
-            raise AnalysisRunUnavailableError("no completed analysis run")
-
         target_total = self.reviews.count_eligible(product_id, target_start, target_end)
         baseline_total = self.reviews.count_eligible(
             product_id, baseline_start, baseline_end
         )
+        target_average_rating = self.reviews.average_rating(
+            product_id, target_start, target_end
+        )
+        baseline_average_rating = self.reviews.average_rating(
+            product_id, baseline_start, baseline_end
+        )
+        if product.source_mode == "real":
+            return ComparisonResponse(
+                product_id=product_id,
+                target_month=target_month,
+                baseline_month=baseline_month,
+                source_mode="real",
+                coverage=CoverageResponse(
+                    target_total=target_total,
+                    target_labeled=0,
+                    baseline_total=baseline_total,
+                    baseline_labeled=0,
+                    target_average_rating=target_average_rating,
+                    baseline_average_rating=baseline_average_rating,
+                ),
+                status="insufficient_data",
+                issues=[],
+                data_version=str(
+                    product.metadata_json.get("review_revision", "amazon-reviews-2023")
+                ),
+                analysis_version="not-analyzed",
+            )
+
+        run = self.runs.latest_completed()
+        if run is None:
+            raise AnalysisRunUnavailableError("no completed analysis run")
+
         target_labeled = self.reviews.count_labeled(
             product_id, target_start, target_end, run.id
         )
@@ -78,6 +125,8 @@ class CatalogService:
             target_labeled=target_labeled,
             baseline_total=baseline_total,
             baseline_labeled=baseline_labeled,
+            target_average_rating=target_average_rating,
+            baseline_average_rating=baseline_average_rating,
         )
 
         complete = (
@@ -211,4 +260,3 @@ class CatalogService:
             labels=labels,
             source_mode=review.source_mode,
         )
-
