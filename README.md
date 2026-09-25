@@ -55,7 +55,27 @@ docker compose up -d db
 (커밋 `4105d10`에서 복구 가능). DB의 Appliances 상품 3개와 리뷰 7,801건은 삭제하지 않았으며,
 필요할 때 쓸 삭제 SQL은 [docs/cleanup.md](docs/cleanup.md)에 적어 두었다.
 
-## 실행
+## 실행 (React 화면)
+
+쇼핑몰형 리뷰 리포트 화면은 `frontend_react/`(Vite + React + TypeScript)다. 카테고리 → 상품 목록 →
+상품 상세(리뷰 리포트) 흐름이며 가격·구매 기능은 없다. 화면은 계산하지 않고 FastAPI의 SQL 집계값만
+표시한다. Node.js 24에서 확인했다.
+
+```powershell
+# 1) API 서버(첫 번째 PowerShell, 프로젝트 루트)
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+
+# 2) React 개발 서버(두 번째 PowerShell)
+cd frontend_react
+npm install
+npm run dev
+```
+
+브라우저에서 `http://127.0.0.1:5173`을 연다. `/api` 요청은 Vite가 8000번 API로 전달하며, 다른 포트의
+API를 쓰려면 `$env:API_TARGET="http://127.0.0.1:8001"; npm run dev`처럼 지정한다. 타입 검사와 빌드는
+`npm run build`다. 아래 Streamlit 화면은 이전 버전(개발·사람 평가용)으로 유지한다.
+
+## 실행 (Streamlit, 이전 버전·사람 평가 화면)
 
 첫 번째 PowerShell:
 

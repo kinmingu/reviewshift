@@ -37,3 +37,8 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+# React frontend
+node_modules/
+frontend_react/dist/
+*.tsbuildinfo
