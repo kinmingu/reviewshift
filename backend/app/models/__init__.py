@@ -4,6 +4,7 @@ from backend.app.models.domain import (
     Product,
     Review,
     ReviewAnalysisResult,
+    ReviewEmbedding,
     ReviewLabel,
 )
 
@@ -13,5 +14,6 @@ __all__ = [
     "Product",
     "Review",
     "ReviewAnalysisResult",
+    "ReviewEmbedding",
     "ReviewLabel",
 ]

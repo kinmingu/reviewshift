@@ -331,3 +331,20 @@ class TranslationResponse(BaseModel):
 
 # LatestChange는 파일 뒤쪽에 정의된 ComparisonIssue를 참조하므로 마지막에 확정합니다.
 LatestChange.model_rebuild()
+
+
+# === [리뷰 의미 검색 응답] GET /api/v1/products/{id}/search ===
+class ReviewSearchHit(BaseModel):
+    similarity: float
+    review: ReviewResponse
+
+
+class ReviewSearchResponse(BaseModel):
+    product_id: str
+    query: str
+    months: list[str]
+    embedding_model: str
+    # 검색 기간 리뷰 중 임베딩이 준비된 수(모두 준비되지 않았으면 결과가 일부만 대상)
+    embedded_reviews: int
+    total_reviews: int
+    items: list[ReviewSearchHit]

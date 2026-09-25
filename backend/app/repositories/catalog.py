@@ -12,6 +12,7 @@ from backend.app.models import (
     Product,
     Review,
     ReviewAnalysisResult,
+    ReviewEmbedding,
     ReviewLabel,
 )
 
@@ -470,6 +471,69 @@ class ProductInsightRepository:
             )
             for value_month, count in sorted(succeeded_rows.items())
         ]
+
+
+@dataclass(frozen=True)
+class SearchHit:
+    review: Review
+    distance: float
+
+
+# === [리뷰 의미 검색] 상품·기간 필터를 먼저 적용한 뒤 코사인 거리로 정렬합니다 ===
+class ReviewSearchRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def search(
+        self,
+        *,
+        product_id: str,
+        ranges: list[tuple[datetime, datetime]],
+        query_embedding: list[float],
+        model: str,
+        limit: int,
+    ) -> list[SearchHit]:
+        if not ranges:
+            raise ValueError("검색에는 하나 이상의 기간이 필요합니다.")
+        distance = ReviewEmbedding.embedding.cosine_distance(query_embedding)
+        rows = self.session.execute(
+            select(Review, distance)
+            .join(ReviewEmbedding, ReviewEmbedding.review_id == Review.id)
+            .where(
+                Review.product_id == product_id,
+                Review.eligible.is_(True),
+                or_(
+                    *(
+                        (Review.reviewed_at >= start) & (Review.reviewed_at < end)
+                        for start, end in ranges
+                    )
+                ),
+                ReviewEmbedding.model == model,
+            )
+            .options(
+                selectinload(Review.labels).selectinload(ReviewLabel.run),
+                selectinload(Review.analysis_results),
+            )
+            .order_by(distance, Review.id)
+            .limit(limit)
+        ).all()
+        return [SearchHit(review=row[0], distance=float(row[1])) for row in rows]
+
+    def embedded_count(self, product_id: str, start: datetime, end: datetime, model: str) -> int:
+        return int(
+            self.session.scalar(
+                select(func.count(ReviewEmbedding.id))
+                .join(Review, Review.id == ReviewEmbedding.review_id)
+                .where(
+                    Review.product_id == product_id,
+                    Review.eligible.is_(True),
+                    Review.reviewed_at >= start,
+                    Review.reviewed_at < end,
+                    ReviewEmbedding.model == model,
+                )
+            )
+            or 0
+        )
 
 
 class AnalysisRunRepository:

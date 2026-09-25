@@ -18,6 +18,7 @@ from backend.app.schemas.catalog import (
     ProductInsightResponse,
     ProductListResponse,
     ReviewListResponse,
+    ReviewSearchResponse,
     TranslationResponse,
 )
 from backend.app.services.catalog import (
@@ -25,11 +26,13 @@ from backend.app.services.catalog import (
     CatalogService,
     ProductNotFoundError,
 )
+from backend.app.services.embeddings import EmbeddingError
 from backend.app.services.human_evaluation import (
     EvaluationNotFoundError,
     EvaluationValidationError,
     HumanEvaluationService,
 )
+from backend.app.services.review_search import ReviewSearchService
 from backend.app.services.review_translation import TranslationError
 
 router = APIRouter()
@@ -186,6 +189,27 @@ def product_insights(product_id: str, session: DbSession) -> ProductInsightRespo
         return _service(session).product_insights(product_id)
     except ProductNotFoundError as exc:
         raise _not_found(product_id) from exc
+
+
+@router.get("/api/v1/products/{product_id}/search", response_model=ReviewSearchResponse)
+def search_reviews(
+    product_id: str,
+    session: DbSession,
+    q: str = Query(min_length=1, max_length=300),
+    month: list[str] = Query(min_length=1),
+    limit: int = Query(default=8, ge=1, le=30),
+) -> ReviewSearchResponse:
+    """리뷰 의미 검색. 상품과 월(month, 반복 가능)을 반드시 지정해야 합니다."""
+    try:
+        return ReviewSearchService(session).search(
+            product_id=product_id, query=q, months=month, limit=limit
+        )
+    except ProductNotFoundError as exc:
+        raise _not_found(product_id) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except EmbeddingError as exc:
+        raise HTTPException(status_code=503, detail=f"임베딩 모델 처리 실패: {exc}") from exc
 
 
 @router.get(

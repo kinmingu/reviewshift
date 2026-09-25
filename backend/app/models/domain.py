@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -239,3 +240,32 @@ class ReviewLabel(Base):
 
     review: Mapped[Review] = relationship(back_populates="labels")
     run: Mapped[AnalysisRun] = relationship(back_populates="labels")
+
+
+# === [리뷰 임베딩] 의미 검색(RAG)용 벡터. 리뷰·모델마다 1개, 원문이 바뀌면 content_hash로 감지합니다 ===
+EMBEDDING_DIMENSIONS = 1024  # BAAI/bge-m3 dense 벡터 차원
+
+
+class ReviewEmbedding(Base):
+    __tablename__ = "review_embeddings"
+    __table_args__ = (
+        UniqueConstraint("review_id", "model", name="uq_review_embeddings_review_model"),
+        Index(
+            "ix_review_embeddings_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    review_id: Mapped[str] = mapped_column(
+        ForeignKey("reviews.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    model: Mapped[str] = mapped_column(String(120), nullable=False)
+    model_digest: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIMENSIONS), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

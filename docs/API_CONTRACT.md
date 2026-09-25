@@ -72,6 +72,18 @@ fixture와 실제 데이터는 한 목록에서 섞이지 않는다.
 상품 목록·상세의 상품 요약에는 `analyzed_review_count`, `positive_review_share`,
 `negative_review_share`가 추가되었다(분석 전이면 0 / `null`).
 
+## GET `/api/v1/products/{product_id}/search`
+
+리뷰 의미 검색(RAG의 검색 단계). 상품과 기간을 반드시 지정한다.
+
+- `q`: 필수, 1~300자. 한국어 질의로 영어 리뷰를 찾을 수 있다(bge-m3 다국어 임베딩).
+- `month`: 필수 `YYYY-MM`, 여러 번 지정 가능. 지정한 월의 리뷰만 검색한다.
+- `limit`: 1~30, 기본 8
+
+응답 `items`는 코사인 유사도(`similarity = 1 - 거리`) 내림차순의 실제 저장 리뷰다.
+`embedded_reviews / total_reviews`로 검색 기간의 임베딩 준비 정도를 알 수 있다.
+검색어·월 누락이나 잘못된 월은 `422`, 없는 상품은 `404`, 임베딩 모델 오류·시간 초과는 `503`.
+
 ## GET `/api/v1/products/{product_id}/comparison`
 
 쿼리:
