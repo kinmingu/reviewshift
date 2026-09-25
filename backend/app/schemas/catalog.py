@@ -424,3 +424,40 @@ class FaqResponse(BaseModel):
     analysis_version: str
     current_analyzed_count: int
     items: list[FaqItem]
+
+
+# === [이상징후 탐지] GET /api/v1/anomalies ===
+class AnomalyItem(BaseModel):
+    level: Literal["anomaly", "watch"]
+    product_id: str
+    product_name_ko: str | None
+    category: str
+    image_url: str | None
+    baseline_month: str
+    target_month: str
+    aspect: str
+    detail_label: str
+    detail_name_ko: str | None
+    baseline_count: int
+    baseline_total: int
+    target_count: int
+    target_total: int
+    baseline_rate: float | None
+    target_rate: float | None
+    change_pp: float | None
+    # 한쪽 Fisher 정확 검정 p값과 Benjamini-Hochberg 보정 q값
+    p_value: float
+    q_value: float
+    is_provisional: bool
+    evidence_review_ids: list[str]
+
+
+class AnomalyReport(BaseModel):
+    method_version: str
+    method: str
+    products_total: int
+    products_evaluable: int
+    pairs_evaluated: int
+    pairs_insufficient: int
+    tests: int
+    items: list[AnomalyItem]

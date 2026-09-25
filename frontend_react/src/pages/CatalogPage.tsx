@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
 import { api } from "../api";
+import AnomalyRadar from "../components/AnomalyRadar";
 import ProductCard from "../components/ProductCard";
 import { CATEGORY_INFO, categoryName } from "../lib/format";
 
@@ -41,8 +42,13 @@ export default function CatalogPage() {
           ))}
         </nav>
 
-        {/* === [상품 목록] === */}
+        {/* === [상품 목록] 검색 중이 아니면 맨 위에 이상징후 레이더 === */}
         <section>
+          {!query && (
+            <div style={{ marginBottom: 24 }}>
+              <AnomalyRadar />
+            </div>
+          )}
           <div className="section-head">
             <div>
               <h1>{query ? `"${query}" 검색 결과` : categoryName(selected)}</h1>

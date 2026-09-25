@@ -255,3 +255,38 @@ export async function askQuestion(
   }
   return response.json();
 }
+
+// === [이상징후 탐지] 모든 상품·인접 두 달 통계 검정 결과 ===
+export interface AnomalyItem {
+  level: "anomaly" | "watch";
+  product_id: string;
+  product_name_ko: string | null;
+  category: string;
+  image_url: string | null;
+  baseline_month: string;
+  target_month: string;
+  detail_label: string;
+  detail_name_ko: string | null;
+  baseline_count: number;
+  baseline_total: number;
+  target_count: number;
+  target_total: number;
+  baseline_rate: number | null;
+  target_rate: number | null;
+  change_pp: number | null;
+  p_value: number;
+  q_value: number;
+  is_provisional: boolean;
+}
+
+export interface AnomalyReport {
+  method: string;
+  products_total: number;
+  products_evaluable: number;
+  pairs_evaluated: number;
+  pairs_insufficient: number;
+  tests: number;
+  items: AnomalyItem[];
+}
+
+export const fetchAnomalies = () => getJson<AnomalyReport>("/api/v1/anomalies");

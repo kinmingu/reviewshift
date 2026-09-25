@@ -352,6 +352,15 @@ mark.neutral, mark.uncertain { background: var(--highlight); }
 .semantic button { border: 0; border-radius: 999px; padding: 10px 18px; background: var(--ink); color: #fff; font-weight: 700; }
 .similarity { font-size: 12px; font-weight: 700; color: var(--ai); }
 
+/* === [이상징후 레이더] === */
+.radar { border-color: #f3c7b8; background: linear-gradient(180deg, #fff8f5, #fff); }
+.radar-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 10px; margin-top: 12px; }
+.radar-item { display: flex; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--card); font-size: 13px; line-height: 1.5; }
+.radar-item.anomaly { border-color: var(--negative); }
+.radar-item img { width: 64px; height: 64px; object-fit: contain; flex-shrink: 0; background: var(--paper-deep); border-radius: 10px; }
+.radar-item > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.radar-meta { color: var(--muted); font-size: 12px; }
+
 /* === [반응형] 태블릿·모바일 === */
 @media (max-width: 900px) {
   .catalog { grid-template-columns: minmax(0, 1fr); }

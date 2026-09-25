@@ -10,6 +10,7 @@ from backend.app.core.database import get_db
 from backend.app.schemas.catalog import (
     AgentAnswerResponse,
     AgentQuestionRequest,
+    AnomalyReport,
     CategoryListResponse,
     ComparisonResponse,
     EvaluationItemResponse,
@@ -24,6 +25,7 @@ from backend.app.schemas.catalog import (
     ReviewSearchResponse,
     TranslationResponse,
 )
+from backend.app.services.anomaly import cached_report
 from backend.app.services.answer_store import AnswerStore, ChatService
 from backend.app.services.catalog import (
     AnalysisRunUnavailableError,
@@ -138,6 +140,12 @@ def health(session: DbSession) -> HealthResponse:
     except SQLAlchemyError:
         return HealthResponse(status="degraded", database="unavailable")
     return HealthResponse(status="ok", database="connected")
+
+
+@router.get("/api/v1/anomalies", response_model=AnomalyReport)
+def anomalies(session: DbSession) -> AnomalyReport:
+    """모든 상품·모든 인접 두 달의 불만 증가를 통계 검정(Fisher + BH 보정)으로 판정합니다."""
+    return cached_report(session)
 
 
 @router.get("/api/v1/categories", response_model=CategoryListResponse)

@@ -180,3 +180,14 @@ HTTP API와 같은 서비스를 호출하는 읽기 전용 도구다. 서버 안
 - `get_faq_answers(product_id)`: `/faq`와 같은 내용
 
 없는 상품, 잘못된 카테고리·월, 월 누락, 임베딩 모델 오류는 도구 오류(`isError`)와 한국어 메시지로 반환한다.
+
+## GET `/api/v1/anomalies`
+
+불만 이상징후 탐지. 모든 공식 상품의 인접한 두 달 쌍 전부를 같은 규칙으로 검정한다(기간을 결과로 고르지 않음).
+
+- 지표: 항목별 아쉬워요 리뷰 비율(분모 = 그 달 분석 성공 리뷰, 표본 안)
+- 검정: 비율 증가에 대한 한쪽 Fisher 정확 검정 `p_value`, 모든 검정에 Benjamini-Hochberg 보정 `q_value`
+- `level=anomaly`: q < 0.10, 증가 10%p 이상, 대상 월 아쉬워요 3건 이상
+- `level=watch`: 보정 전 p < 0.05(이상징후 제외)
+- 두 달 중 한 달이라도 분석 성공 10건 미만이면 판정하지 않고 `pairs_insufficient`로 센다.
+- 결과는 서버에서 2분간 캐시한다. `method_version=anomaly-fisher-bh-v1`
