@@ -197,7 +197,27 @@ export interface AgentAnswer {
   model: string;
   prompt_version: string;
   latency_ms: number;
+  cached: boolean;
+  generated_at: string | null;
+  analyzed_count: number | null;
+  is_stale: boolean;
 }
+
+// === [자주 묻는 질문] 미리 생성해 저장한 답(없으면 null) ===
+export interface FaqItem {
+  key: string;
+  label: string;
+  question: string;
+  answer: AgentAnswer | null;
+}
+
+export interface FaqResponse {
+  analysis_version: string;
+  current_analyzed_count: number;
+  items: FaqItem[];
+}
+
+export const fetchFaq = (id: string) => getJson<FaqResponse>(`/api/v1/products/${id}/faq`);
 
 export async function searchReviews(id: string, query: string, months: string[]): Promise<SearchResult> {
   const params = new URLSearchParams({ q: query, limit: "8" });

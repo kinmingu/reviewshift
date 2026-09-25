@@ -15,6 +15,7 @@ from backend.app.schemas.catalog import (
     EvaluationItemResponse,
     EvaluationProgressResponse,
     EvaluationSaveRequest,
+    FaqResponse,
     HealthResponse,
     ProductDetail,
     ProductInsightResponse,
@@ -23,6 +24,7 @@ from backend.app.schemas.catalog import (
     ReviewSearchResponse,
     TranslationResponse,
 )
+from backend.app.services.answer_store import AnswerStore, ChatService
 from backend.app.services.catalog import (
     AnalysisRunUnavailableError,
     CatalogService,
@@ -34,7 +36,7 @@ from backend.app.services.human_evaluation import (
     EvaluationValidationError,
     HumanEvaluationService,
 )
-from backend.app.services.review_agent import AgentUnavailableError, ReviewQuestionAgent
+from backend.app.services.review_agent import AgentUnavailableError
 from backend.app.services.review_search import ReviewSearchService
 from backend.app.services.review_translation import TranslationError
 
@@ -194,6 +196,15 @@ def product_insights(product_id: str, session: DbSession) -> ProductInsightRespo
         raise _not_found(product_id) from exc
 
 
+@router.get("/api/v1/products/{product_id}/faq", response_model=FaqResponse)
+def product_faq(product_id: str, session: DbSession) -> FaqResponse:
+    """미리 생성해 둔 자주 묻는 질문 답변(없으면 answer=null)과 현재 분석 상태."""
+    try:
+        return AnswerStore(session).faq(product_id)
+    except ProductNotFoundError as exc:
+        raise _not_found(product_id) from exc
+
+
 @router.post(
     "/api/v1/products/{product_id}/questions", response_model=AgentAnswerResponse
 )
@@ -202,7 +213,7 @@ def ask_product_question(
 ) -> AgentAnswerResponse:
     """상품 리뷰 질문 Agent. 답변은 도구 수치와 실제 리뷰 인용이 검증된 경우에만 반환합니다."""
     try:
-        return ReviewQuestionAgent(session).ask(
+        return ChatService(session).ask(
             product_id,
             payload.question,
             [turn.model_dump() for turn in payload.history],

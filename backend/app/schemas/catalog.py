@@ -393,3 +393,24 @@ class AgentAnswerResponse(BaseModel):
     model: str
     prompt_version: str
     latency_ms: int
+    # 저장된 답을 돌려준 경우(미리 생성한 FAQ 또는 이전에 같은 질문으로 만든 답)
+    cached: bool = False
+    generated_at: datetime | None = None
+    # 답을 만든 시점의 분석 성공 리뷰 수. 지금과 다르면 is_stale=True
+    analyzed_count: int | None = None
+    is_stale: bool = False
+
+
+# === [자주 묻는 질문] GET /api/v1/products/{id}/faq ===
+class FaqItem(BaseModel):
+    key: str
+    label: str
+    question: str
+    answer: AgentAnswerResponse | None
+
+
+class FaqResponse(BaseModel):
+    product_id: str
+    analysis_version: str
+    current_analyzed_count: int
+    items: list[FaqItem]

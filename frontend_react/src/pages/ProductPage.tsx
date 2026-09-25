@@ -1,6 +1,6 @@
 // =====================================================================
 // [상품 상세 = 리뷰 리포트]
-//   1. 상품 정보(이미지·이름·평점)       2. 한눈에 보는 리뷰(좋아요/아쉬워요·분석 진행)
+//   1. 상품 정보(이미지·이름·평점)       2. 한눈에 보는 리뷰 + AI 리뷰 요약(미리 생성)
 //   3. 사람들이 말하는 포인트(항목별)     4. 자주 나오는 아쉬운 점 TOP 3(근거 인용)
 //   5. 최근 두 달 변화                    6. 별점 분포 · 월별 흐름
 //   7. 리뷰 원문(의미 검색 포함)          8. 하단 고정 바(리뷰 챗봇)
@@ -9,7 +9,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { api, type ProductDetail, type ProductInsights } from "../api";
+import { api, fetchFaq, type FaqResponse, type ProductDetail, type ProductInsights } from "../api";
 import AskPanel from "../components/AskPanel";
 import { AnalysisBadge } from "../components/ProductCard";
 import ReviewList from "../components/ReviewList";
@@ -106,6 +106,43 @@ function SummaryPanel({ insights }: { insights: ProductInsights }) {
           전체 {analysis.total}건 중 {analysis.succeeded}건만 분석된 잠정 결과예요. 분석이 끝나면 비율이 달라질 수
           있어요.
         </p>
+      )}
+    </section>
+  );
+}
+
+// === [2-1. AI 리뷰 요약] 미리 생성해 저장한 요약(검증 통과 답변)을 바로 보여 줍니다 ===
+function AiSummaryPanel({ faq }: { faq: FaqResponse | undefined }) {
+  const summary = faq?.items.find((item) => item.key === "summary")?.answer;
+  return (
+    <section className="panel ai-summary">
+      <div className="panel-head">
+        <div>
+          <h2>AI 리뷰 요약</h2>
+          <p className="sub">
+            {summary
+              ? `리뷰 ${summary.analyzed_count ?? 0}건 분석 기준 · ${summary.generated_at ? dateLabel(summary.generated_at) : ""} 생성 · 인용 ${summary.citations.length}건`
+              : "아직 요약을 만들지 않았어요. 아래 챗봇에 물어보면 실시간으로 답해 드려요."}
+          </p>
+        </div>
+        <div className="tags" style={{ marginTop: 0 }}>
+          {summary?.is_stale && <span className="badge warn">이후 분석이 더 진행됨 · 갱신 예정</span>}
+          {summary?.is_provisional && <span className="badge ai">잠정</span>}
+        </div>
+      </div>
+      {summary && <p className="ask-answer">{summary.answer}</p>}
+      {summary && summary.citations.length > 0 && (
+        <details>
+          <summary className="bubble-meta">근거 리뷰 보기</summary>
+          {summary.citations.map((citation) => (
+            <blockquote key={citation.review_id} className="quote">
+              {citation.excerpt.replace(/<br\s*\/?>/gi, " ")}
+              <small>
+                ★{citation.rating} · {citation.date}
+              </small>
+            </blockquote>
+          ))}
+        </details>
       )}
     </section>
   );
@@ -292,6 +329,7 @@ export default function ProductPage() {
   const navigate = useNavigate();
   const product = useQuery({ queryKey: ["product", productId], queryFn: () => api.product(productId) });
   const insights = useQuery({ queryKey: ["insights", productId], queryFn: () => api.insights(productId) });
+  const faq = useQuery({ queryKey: ["faq", productId], queryFn: () => fetchFaq(productId) });
 
   if (product.isError || insights.isError) {
     return (
@@ -316,6 +354,7 @@ export default function ProductPage() {
       <Hero product={product.data} insights={insights.data} />
       <div className="report">
         <SummaryPanel insights={insights.data} />
+        <AiSummaryPanel faq={faq.data} />
         <AspectPanel insights={insights.data} />
         <ComplaintPanel insights={insights.data} />
         <ChangePanel insights={insights.data} />

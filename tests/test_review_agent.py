@@ -150,7 +150,7 @@ def test_question_validation_and_model_failure(
         def ask(self, *_: object) -> None:
             raise AgentUnavailableError("ReadTimeout")
 
-    monkeypatch.setattr("backend.app.api.routes.ReviewQuestionAgent", _DownAgent)
+    monkeypatch.setattr("backend.app.services.answer_store.ReviewQuestionAgent", _DownAgent)
     down = client.post(f"/api/v1/products/{PRODUCT}/questions", json={"question": "괜찮나요?"})
     assert down.status_code == 503
     assert "AI 모델" in down.json()["detail"]

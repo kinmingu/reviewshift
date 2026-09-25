@@ -2,23 +2,21 @@
 // [리뷰 챗봇] 하단 고정 바 → 대화 창 (RAG: 리뷰 검색 + SQL 리포트 → 답변)
 // - 질문마다 서버 Agent가 관련 리뷰를 찾아 답하고, 인용 리뷰 ID·수치를 검증한 답만 보여 줍니다.
 // - 이전 대화는 문맥으로만 함께 보냅니다(숫자·근거는 매번 새로 조회).
-// - CPU 로컬 모델이라 답변까지 1~4분 걸릴 수 있어 경과 시간을 표시합니다.
+// - 자주 묻는 질문은 미리 만들어 저장한 답을 즉시 보여 주고, 처음 보는 질문만 실시간으로 답합니다.
+// - 실시간 답변은 CPU 로컬 모델이라 1~4분 걸릴 수 있어 경과 시간을 표시합니다.
 // =====================================================================
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
-import { askQuestion, type AgentAnswer } from "../api";
+import { askQuestion, fetchFaq, type AgentAnswer, type FaqItem } from "../api";
+import { dateLabel } from "../lib/format";
 
 type Message =
   | { role: "user"; content: string }
   | { role: "assistant"; content: string; result: AgentAnswer }
   | { role: "error"; content: string };
 
-const EXAMPLES = [
-  "이거 샀는데 금방 고장 났어요. 원래 이런 문제가 있나요?",
-  "배송이나 포장 문제는 없나요?",
-  "아이가 써도 안전한가요?",
-];
+const TYPING_HINT = "이거 샀는데 금방 고장 났어요. 원래 이런 문제가 있나요?";
 const TOOL_NAMES: Record<string, string> = {
   get_product_report: "리뷰 리포트 집계",
   search_reviews: "관련 리뷰 검색",
@@ -55,7 +53,16 @@ function AnswerBubble({ result }: { result: AgentAnswer }) {
   }
   return (
     <div className="bubble bot">
-      {result.is_provisional && <span className="badge ai">일부 리뷰만 분석된 잠정 결과</span>}
+      <div className="tags" style={{ marginTop: 0 }}>
+        {result.cached && (
+          <span className="badge done">
+            저장된 답변{result.analyzed_count !== null && ` · 리뷰 ${result.analyzed_count}건 분석 기준`}
+            {result.generated_at && ` · ${dateLabel(result.generated_at)}`}
+          </span>
+        )}
+        {result.is_stale && <span className="badge warn">이후 분석이 더 진행됨 · 갱신 예정</span>}
+        {result.is_provisional && <span className="badge ai">일부 리뷰만 분석된 잠정 결과</span>}
+      </div>
       <p className="ask-answer">{result.answer}</p>
       {result.citations.length > 0 && (
         <details open>
@@ -73,7 +80,8 @@ function AnswerBubble({ result }: { result: AgentAnswer }) {
       {result.notice && <small className="bubble-meta">{result.notice}</small>}
       <details>
         <summary className="bubble-meta">
-          도구 {result.tool_calls.length}개 · {(result.latency_ms / 1000).toFixed(0)}초 · {result.model}
+          도구 {result.tool_calls.length}개 · {result.cached ? "생성 당시 " : ""}
+          {(result.latency_ms / 1000).toFixed(0)}초 · {result.model}
         </summary>
         <ul className="tool-log">
           {result.tool_calls.map((call, index) => (
@@ -95,6 +103,8 @@ export default function AskPanel({ productId, productName }: { productId: string
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>(() => loadMessages(productId));
   const bottomRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+  const faq = useQuery({ queryKey: ["faq", productId], queryFn: () => fetchFaq(productId) });
 
   useEffect(() => {
     sessionStorage.setItem(storageKey(productId), JSON.stringify(messages));
@@ -104,8 +114,11 @@ export default function AskPanel({ productId, productName }: { productId: string
   const ask = useMutation({
     mutationFn: ({ question, history }: { question: string; history: { role: "user" | "assistant"; content: string }[] }) =>
       askQuestion(productId, question, history),
-    onSuccess: (result) =>
-      setMessages((previous) => [...previous, { role: "assistant", content: result.answer ?? "", result }]),
+    onSuccess: (result) => {
+      setMessages((previous) => [...previous, { role: "assistant", content: result.answer ?? "", result }]);
+      // 새로 저장된 답이 FAQ 목록에도 반영되도록 다시 불러옵니다.
+      queryClient.invalidateQueries({ queryKey: ["faq", productId] });
+    },
     onError: (error) => setMessages((previous) => [...previous, { role: "error", content: (error as Error).message }]),
   });
 
@@ -121,6 +134,23 @@ export default function AskPanel({ productId, productName }: { productId: string
     setInput("");
     ask.mutate({ question, history });
   };
+
+  // === [자주 묻는 질문 선택] 저장된 최신 답이 있으면 즉시, 없으면 실시간으로 묻습니다 ===
+  const pickFaq = (item: FaqItem) => {
+    if (ask.isPending) return;
+    if (item.answer && !item.answer.is_stale) {
+      const answer = item.answer;
+      setMessages((previous) => [
+        ...previous,
+        { role: "user", content: item.question },
+        { role: "assistant", content: answer.answer ?? "", result: answer },
+      ]);
+      return;
+    }
+    send(item.question);
+  };
+
+  const faqButtons = (faq.data?.items ?? []).filter((item) => item.key !== "summary");
 
   return (
     <>
@@ -150,13 +180,7 @@ export default function AskPanel({ productId, productName }: { productId: string
               <div className="bubble bot">
                 산 제품에 문제가 있거나 사기 전에 궁금한 점을 물어보세요. 다른 구매자 리뷰를 찾아서 비슷한 사례가
                 있는지, 얼마나 자주 나오는지 알려 드려요.
-                <div className="tags">
-                  {EXAMPLES.map((example) => (
-                    <button key={example} className="chip" onClick={() => send(example)}>
-                      {example}
-                    </button>
-                  ))}
-                </div>
+                <small className="bubble-meta">⚡ 표시는 미리 준비된 답이라 바로 나와요.</small>
               </div>
             )}
             {messages.map((message, index) =>
@@ -183,6 +207,18 @@ export default function AskPanel({ productId, productName }: { productId: string
             <div ref={bottomRef} />
           </div>
 
+          {/* === [자주 묻는 질문 버튼] 입력창 바로 위, 대화 중에도 언제든 누를 수 있습니다 === */}
+          {faqButtons.length > 0 && (
+            <div className="tags faq-row">
+              {faqButtons.map((item) => (
+                <button key={item.key} className="chip" onClick={() => pickFaq(item)} disabled={ask.isPending}>
+                  {item.answer && !item.answer.is_stale ? "⚡ " : ""}
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* === [입력창] === */}
           <form
             className="ask-form"
@@ -195,7 +231,7 @@ export default function AskPanel({ productId, productName }: { productId: string
               value={input}
               maxLength={500}
               onChange={(event) => setInput(event.target.value)}
-              placeholder={ask.isPending ? "답변을 기다리는 중이에요" : "예: 이거 샀는데 소리가 한쪽만 나와요"}
+              placeholder={ask.isPending ? "답변을 기다리는 중이에요" : `예: ${TYPING_HINT}`}
               aria-label="질문"
               disabled={ask.isPending}
             />

@@ -75,7 +75,15 @@ npm run dev
 한국어로 입력해도 영어 리뷰를 찾는다(임베딩 생성 필요: `python -m scripts.embed_reviews --all`,
 약 0.6초/건). 하단 **AI에게 리뷰 물어보기**는 LangGraph Agent가 SQL 리포트와 검색 리뷰로 답하며,
 인용 리뷰 ID와 수치를 검증한 답만 보여 준다. 로컬 CPU라 답변까지 1~4분 걸린다. 필요한 Ollama
-모델: `qwen3.5:latest`, `bge-m3`. `/api` 요청은 Vite가 8000번 API로 전달하며, 다른 포트의
+모델: `qwen3.5:latest`, `bge-m3`.
+
+자주 묻는 질문(AI 리뷰 요약 포함 6개)은 미리 생성해 DB에 저장해 두고 즉시 보여 준다. 한 번 답한 질문도
+저장되어 같은 질문은 바로 답한다. 분석이 더 진행되면 저장 답을 '낡음'으로 표시하고 다시 만든다.
+
+```powershell
+# 데모 4개 상품 FAQ 답변 생성(상품당 6개, 답변당 1~3분)
+.\.venv\Scripts\python.exe -m scripts.generate_faq_answers --demo
+``` `/api` 요청은 Vite가 8000번 API로 전달하며, 다른 포트의
 API를 쓰려면 `$env:API_TARGET="http://127.0.0.1:8001"; npm run dev`처럼 지정한다. 타입 검사와 빌드는
 `npm run build`다. 아래 Streamlit 화면은 이전 버전(개발·사람 평가용)으로 유지한다.
 

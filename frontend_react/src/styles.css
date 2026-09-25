@@ -218,6 +218,9 @@ img { max-width: 100%; }
 .progress { height: 6px; background: rgba(255, 255, 255, 0.15); border-radius: 999px; overflow: hidden; margin-top: 8px; }
 .progress span { display: block; height: 100%; background: var(--ai); }
 
+.ai-summary { border-color: #d9d0ff; background: linear-gradient(180deg, #fbfaff, #fff); }
+.ai-summary h2::before { content: "✦ "; color: var(--ai); }
+
 /* === [항목별 평가] 가운데 기준 양방향 막대 === */
 .aspect-list { display: flex; flex-direction: column; gap: 12px; }
 .aspect-row { display: grid; grid-template-columns: 130px 1fr 1fr; align-items: center; gap: 10px; font-size: 14px; }
@@ -339,6 +342,9 @@ mark.neutral, mark.uncertain { background: var(--highlight); }
 .tool-log { padding-left: 18px; margin: 6px 0 0; font-size: 12px; color: var(--ink-soft); line-height: 1.7; }
 .ask-sheet.chat .ask-form { margin: 0; padding: 12px 14px; border-top: 1px solid var(--line); background: var(--card); }
 .ask-sheet.chat .tags .chip { text-align: left; }
+.faq-row { margin: 0; padding: 10px 14px 0; background: var(--card); border-top: 1px solid var(--line); flex-wrap: nowrap; overflow-x: auto; }
+.faq-row .chip { white-space: nowrap; }
+.ask-sheet.chat .faq-row + .ask-form { border-top: 0; }
 
 /* === [리뷰 의미 검색] === */
 .semantic { display: flex; gap: 8px; margin-bottom: 12px; }

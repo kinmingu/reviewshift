@@ -95,6 +95,19 @@ fixture와 실제 데이터는 한 목록에서 섞이지 않는다.
 - 질문 길이 오류 `422`, 없는 상품 `404`, LLM 연결 실패·시간 초과(기본 240초) `503`.
   CPU 환경에서 응답까지 1~4분 걸릴 수 있다.
 
+### 답변 저장(캐시)과 자주 묻는 질문
+
+- 대화 기록(`history`) 없이 들어온 질문은 같은 질문(띄어쓰기·대소문자·끝 문장부호 무시)의 저장 답이 있고
+  분석 버전·분석 성공 건수가 그때와 같으면 LLM 없이 즉시 반환한다(`cached=true`, `generated_at`,
+  `analyzed_count`). 분석이 더 진행됐으면 새로 생성해 덮어쓴다. 검증 실패 답은 저장하지 않는다.
+- 후속 질문(`history` 있음)은 캐시를 쓰지도 저장하지도 않는다.
+
+## GET `/api/v1/products/{product_id}/faq`
+
+상품별 자주 묻는 질문 6개(`summary` AI 리뷰 요약, `durability`, `shipping`, `value`, `usability`,
+`safety`)와 미리 생성해 저장한 답(없으면 `answer=null`). 답에는 생성 시점 분석 건수와 `is_stale`
+(지금 분석 상태와 다르면 true)이 있다. 생성은 `python -m scripts.generate_faq_answers --demo`.
+
 ## GET `/api/v1/products/{product_id}/search`
 
 리뷰 의미 검색(RAG의 검색 단계). 상품과 기간을 반드시 지정한다.

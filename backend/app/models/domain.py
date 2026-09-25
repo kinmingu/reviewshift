@@ -269,3 +269,37 @@ class ReviewEmbedding(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+# === [AI 답변 저장] 미리 생성한 자주 묻는 질문 답변과 한 번 답한 질문의 캐시 ===
+# 답변을 만든 시점의 분석 버전·분석 건수를 함께 저장해, 분석이 진행되면 "낡은 답"으로 표시합니다.
+class AgentAnswer(Base):
+    __tablename__ = "agent_answers"
+    __table_args__ = (
+        UniqueConstraint(
+            "product_id", "question_key", "prompt_version", name="uq_agent_answers_question"
+        ),
+        CheckConstraint("kind IN ('faq', 'cache')", name="ck_agent_answers_kind"),
+    )
+
+    id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    product_id: Mapped[str] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    faq_key: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    question_key: Mapped[str] = mapped_column(String(600), nullable=False)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    citations_json: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list)
+    tool_calls_json: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list)
+    generation_attempts: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_provisional: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    model: Mapped[str] = mapped_column(String(120), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    analysis_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    analyzed_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    latency_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

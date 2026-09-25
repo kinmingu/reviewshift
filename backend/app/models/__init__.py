@@ -1,4 +1,5 @@
 from backend.app.models.domain import (
+    AgentAnswer,
     AnalysisRun,
     HumanReviewEvaluation,
     Product,
@@ -9,6 +10,7 @@ from backend.app.models.domain import (
 )
 
 __all__ = [
+    "AgentAnswer",
     "AnalysisRun",
     "HumanReviewEvaluation",
     "Product",
