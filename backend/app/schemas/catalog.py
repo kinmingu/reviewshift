@@ -351,8 +351,15 @@ class ReviewSearchResponse(BaseModel):
 
 
 # === [AI 질문 Agent] POST /api/v1/products/{id}/questions ===
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=1500)
+
+
 class AgentQuestionRequest(BaseModel):
     question: str = Field(min_length=2, max_length=500)
+    # 이전 대화(최근 것만). 답변 문맥에만 쓰고 수치·근거로는 쓰지 않습니다.
+    history: list[ChatTurn] = Field(default_factory=list, max_length=8)
 
 
 class AgentToolCall(BaseModel):
@@ -373,6 +380,7 @@ class AgentCitation(BaseModel):
 class AgentAnswerResponse(BaseModel):
     product_id: str
     question: str
+    search_query: str
     # answered: 인용·수치 검증 통과 / failed: 재생성 후에도 검증 실패(답변 비공개)
     status: Literal["answered", "failed"]
     answer: str | None

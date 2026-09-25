@@ -202,7 +202,11 @@ def ask_product_question(
 ) -> AgentAnswerResponse:
     """상품 리뷰 질문 Agent. 답변은 도구 수치와 실제 리뷰 인용이 검증된 경우에만 반환합니다."""
     try:
-        return ReviewQuestionAgent(session).ask(product_id, payload.question)
+        return ReviewQuestionAgent(session).ask(
+            product_id,
+            payload.question,
+            [turn.model_dump() for turn in payload.history],
+        )
     except ProductNotFoundError as exc:
         raise _not_found(product_id) from exc
     except ValueError as exc:

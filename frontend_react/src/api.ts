@@ -185,6 +185,7 @@ export interface SearchResult {
 }
 
 export interface AgentAnswer {
+  search_query: string;
   status: "answered" | "failed";
   answer: string | null;
   citations: { review_id: string; rating: number; date: string; excerpt: string }[];
@@ -209,11 +210,15 @@ export async function searchReviews(id: string, query: string, months: string[])
   return response.json();
 }
 
-export async function askQuestion(id: string, question: string): Promise<AgentAnswer> {
+export async function askQuestion(
+  id: string,
+  question: string,
+  history: { role: "user" | "assistant"; content: string }[] = [],
+): Promise<AgentAnswer> {
   const response = await fetch(`/api/v1/products/${id}/questions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, history }),
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));

@@ -34,7 +34,9 @@ from backend.app.services.catalog import CatalogService, ProductNotFoundError
 from backend.app.services.embeddings import EmbeddingError
 from backend.app.services.review_search import ReviewSearchService
 
-AGENT_PROMPT_VERSION = "review-qa-prompt-v1"
+AGENT_PROMPT_VERSION = "review-qa-prompt-v2-chat"
+MAX_HISTORY_TURNS = 6
+FOLLOW_UP_CHARS = 25
 MAX_QUESTION_CHARS = 500
 SEARCH_LIMIT = 6
 EXCERPT_CHARS = 600
@@ -57,6 +59,12 @@ SYSTEM_PROMPT = """너는 쇼핑 리뷰 분석 서비스 ReviewShift의 답변 �
 5. FACTS.analysis_status가 complete가 아니면 "일부 리뷰만 분석된 잠정 결과"라고 밝힌다.
 6. 질문에 답할 근거가 부족하면 모른다고 말하고 추측하지 않는다.
 7. 가격·배송일·재고처럼 데이터에 없는 정보는 알 수 없다고 답한다.
+8. 사용자가 자신이 산 제품의 문제(고장, 소음, 사이즈 등)를 말하면
+   ① 비슷한 문제를 말한 리뷰가 REVIEWS에 있는지, ② FACTS 기준으로 그 문제가 얼마나 자주 언급되는지,
+   ③ 리뷰에 나온 대처·해결 경험이 있으면 그것을 알려 준다. 리뷰에 없는 수리 방법을 지어내지 않는다.
+   안전(과열·스파크·화상·피부 이상 등)과 관련되면 사용을 멈추고 판매자·제조사에 문의하라고 권한다.
+9. HISTORY는 이전 대화 맥락일 뿐이다. 이전 답변의 숫자나 주장을 근거로 재사용하지 말고
+   이번 FACTS와 REVIEWS로만 답한다.
 출력은 JSON 하나: {"answer": "...", "cited_review_ids": ["..."]}"""
 
 OUTPUT_SCHEMA = {
@@ -73,6 +81,8 @@ OUTPUT_SCHEMA = {
 class AgentState(TypedDict, total=False):
     product_id: str
     question: str
+    search_query: str
+    history: list[dict[str, str]]
     product_name: str
     months: list[str]
     facts: dict[str, Any]
@@ -252,14 +262,14 @@ class ReviewQuestionAgent:
         started = time.perf_counter()
         arguments = {
             "product_id": state["product_id"],
-            "query": state["question"],
+            "query": state["search_query"],
             "months": state["months"],
             "limit": SEARCH_LIMIT,
         }
         try:
             result = self.search_service.search(
                 product_id=state["product_id"],
-                query=state["question"],
+                query=state["search_query"],
                 months=state["months"],
                 limit=SEARCH_LIMIT,
             )
@@ -313,6 +323,7 @@ class ReviewQuestionAgent:
     # === [노드 2] 답변 생성: 사실(FACTS)과 리뷰(REVIEWS, 신뢰 불가 데이터)를 분리해 전달 ===
     def _generate(self, state: AgentState) -> AgentState:
         payload = {
+            "HISTORY_previous_turns": state.get("history", []),
             "question": state["question"],
             "product": state["product_name"],
             "FACTS": state["facts"],
@@ -357,8 +368,29 @@ class ReviewQuestionAgent:
         return "retry" if state.get("attempts", 0) < MAX_GENERATION_ATTEMPTS else "done"
 
     # === [실행 진입점] ===
-    def ask(self, product_id: str, question: str) -> AgentAnswerResponse:
+    @staticmethod
+    def _search_query(question: str, history: list[dict[str, str]]) -> str:
+        """짧은 후속 질문("그럼 배송은?")은 직전 사용자 질문을 붙여 검색합니다(규칙 기반)."""
+        previous = next(
+            (turn["content"] for turn in reversed(history) if turn["role"] == "user"), None
+        )
+        if previous and len(question) < FOLLOW_UP_CHARS:
+            return f"{previous} {question}"[:300]
+        return question[:300]
+
+    def ask(
+        self,
+        product_id: str,
+        question: str,
+        history: list[dict[str, str]] | None = None,
+    ) -> AgentAnswerResponse:
         cleaned = " ".join(question.split())
+        # 최근 대화만, 한 턴당 길이를 제한해 전달합니다(프롬프트 크기·주입 범위 제한).
+        recent = [
+            {"role": turn["role"], "content": " ".join(turn["content"].split())[:600]}
+            for turn in (history or [])[-MAX_HISTORY_TURNS:]
+            if turn.get("role") in ("user", "assistant") and turn.get("content", "").strip()
+        ]
         if len(cleaned) < 2:
             raise ValueError("질문을 2자 이상 입력해 주세요.")
         if len(cleaned) > MAX_QUESTION_CHARS:
@@ -373,6 +405,8 @@ class ReviewQuestionAgent:
             {
                 "product_id": product_id,
                 "question": cleaned,
+                "search_query": self._search_query(cleaned, recent),
+                "history": recent,
                 "product_name": str(product.metadata_json.get("title_ko") or product.title),
                 "months": months,
             }
@@ -383,6 +417,7 @@ class ReviewQuestionAgent:
         return AgentAnswerResponse(
             product_id=product_id,
             question=cleaned,
+            search_query=state.get("search_query", cleaned),
             status="answered" if answered else "failed",
             # 검증을 통과하지 못한 답변은 사용자에게 보여 주지 않습니다.
             answer=state.get("answer") if answered else None,

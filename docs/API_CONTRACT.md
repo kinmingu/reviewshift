@@ -74,7 +74,14 @@ fixture와 실제 데이터는 한 목록에서 섞이지 않는다.
 
 ## POST `/api/v1/products/{product_id}/questions`
 
-상품 리뷰 질문 Agent(LangGraph). 본문 `{"question": "..."}`(2~500자).
+상품 리뷰 질문 Agent(LangGraph, 대화형). 본문 `{"question": "...", "history": [...]}`.
+
+- `question`: 2~500자
+- `history`: 선택, 최대 8개 `{role: "user"|"assistant", content}`(각 1,500자 이하). 서버는 최근 6개만,
+  턴당 600자까지 답변 문맥으로 전달한다. 이전 답변의 수치·주장은 근거로 쓰지 않는다.
+- 25자 미만의 짧은 후속 질문은 직전 사용자 질문을 붙여 검색한다(응답 `search_query`로 확인).
+- 사용자가 겪는 제품 문제를 말하면 비슷한 리뷰 유무·언급 빈도(FACTS)·리뷰에 나온 대처를 답하고,
+  안전 관련이면 사용 중지와 판매자·제조사 문의를 권한다.
 
 흐름: 도구 실행(`get_product_report` SQL 리포트, `search_reviews` 상품·저장 월 필터 의미 검색) →
 로컬 Ollama `qwen3.5:latest` 답변 생성(JSON schema) → 검증 → 실패 시 1회 재생성.

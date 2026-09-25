@@ -1,142 +1,217 @@
 // =====================================================================
-// [AI에게 리뷰 물어보기] 하단 고정 바 → 질문 패널
-// 서버 Agent가 SQL 리포트와 리뷰 검색 결과로 답하고, 인용 리뷰 ID·수치를 검증한 답만 보여 줍니다.
-// CPU에서 로컬 모델을 쓰므로 답변까지 1~4분 걸릴 수 있어 진행 상태를 계속 표시합니다.
+// [리뷰 챗봇] 하단 고정 바 → 대화 창 (RAG: 리뷰 검색 + SQL 리포트 → 답변)
+// - 질문마다 서버 Agent가 관련 리뷰를 찾아 답하고, 인용 리뷰 ID·수치를 검증한 답만 보여 줍니다.
+// - 이전 대화는 문맥으로만 함께 보냅니다(숫자·근거는 매번 새로 조회).
+// - CPU 로컬 모델이라 답변까지 1~4분 걸릴 수 있어 경과 시간을 표시합니다.
 // =====================================================================
 import { useMutation } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { askQuestion } from "../api";
+import { askQuestion, type AgentAnswer } from "../api";
 
-const EXAMPLES = ["금방 고장 나나요?", "배송이나 포장 문제는 없나요?", "가격 대비 괜찮은가요?"];
+type Message =
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string; result: AgentAnswer }
+  | { role: "error"; content: string };
+
+const EXAMPLES = [
+  "이거 샀는데 금방 고장 났어요. 원래 이런 문제가 있나요?",
+  "배송이나 포장 문제는 없나요?",
+  "아이가 써도 안전한가요?",
+];
 const TOOL_NAMES: Record<string, string> = {
-  get_product_report: "리뷰 리포트 집계 조회",
+  get_product_report: "리뷰 리포트 집계",
   search_reviews: "관련 리뷰 검색",
 };
 
-function Elapsed({ running }: { running: boolean }) {
+// === [대화 보관] 같은 브라우저 탭에서는 새로고침해도 대화를 유지합니다 ===
+const storageKey = (productId: string) => `reviewshift-chat-${productId}`;
+function loadMessages(productId: string): Message[] {
+  try {
+    return JSON.parse(sessionStorage.getItem(storageKey(productId)) ?? "[]") as Message[];
+  } catch {
+    return [];
+  }
+}
+
+function Elapsed() {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
-    if (!running) return;
-    setSeconds(0);
     const timer = setInterval(() => setSeconds((value) => value + 1), 1000);
     return () => clearInterval(timer);
-  }, [running]);
+  }, []);
   return <>{seconds}초</>;
 }
 
-export default function AskPanel({ productId }: { productId: string }) {
-  const [open, setOpen] = useState(false);
-  const [question, setQuestion] = useState("");
-  const ask = useMutation({ mutationFn: (value: string) => askQuestion(productId, value) });
+// === [답변 말풍선] 답변 · 근거 리뷰 · 도구 기록 ===
+function AnswerBubble({ result }: { result: AgentAnswer }) {
+  if (result.status !== "answered") {
+    return (
+      <div className="bubble bot">
+        근거를 확인할 수 있는 답변을 만들지 못했어요. 질문을 조금 바꿔서 다시 물어봐 주세요.
+        <small className="bubble-meta">{result.failure_reason}</small>
+      </div>
+    );
+  }
+  return (
+    <div className="bubble bot">
+      {result.is_provisional && <span className="badge ai">일부 리뷰만 분석된 잠정 결과</span>}
+      <p className="ask-answer">{result.answer}</p>
+      {result.citations.length > 0 && (
+        <details open>
+          <summary className="bubble-meta">근거 리뷰 {result.citations.length}건</summary>
+          {result.citations.map((citation) => (
+            <blockquote key={citation.review_id} className="quote">
+              {citation.excerpt.replace(/<br\s*\/?>/gi, " ")}
+              <small>
+                ★{citation.rating} · {citation.date}
+              </small>
+            </blockquote>
+          ))}
+        </details>
+      )}
+      {result.notice && <small className="bubble-meta">{result.notice}</small>}
+      <details>
+        <summary className="bubble-meta">
+          도구 {result.tool_calls.length}개 · {(result.latency_ms / 1000).toFixed(0)}초 · {result.model}
+        </summary>
+        <ul className="tool-log">
+          {result.tool_calls.map((call, index) => (
+            <li key={index}>
+              {call.ok ? "✓" : "✗"} {TOOL_NAMES[call.tool] ?? call.tool} — {call.summary}
+            </li>
+          ))}
+          <li>
+            답변 생성 {result.generation_attempts}회 · {result.prompt_version}
+          </li>
+        </ul>
+      </details>
+    </div>
+  );
+}
 
-  const submit = (value: string) => {
-    const trimmed = value.trim();
-    if (trimmed.length < 2 || ask.isPending) return;
-    setQuestion(trimmed);
-    ask.mutate(trimmed);
+export default function AskPanel({ productId, productName }: { productId: string; productName: string }) {
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>(() => loadMessages(productId));
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    sessionStorage.setItem(storageKey(productId), JSON.stringify(messages));
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, productId]);
+
+  const ask = useMutation({
+    mutationFn: ({ question, history }: { question: string; history: { role: "user" | "assistant"; content: string }[] }) =>
+      askQuestion(productId, question, history),
+    onSuccess: (result) =>
+      setMessages((previous) => [...previous, { role: "assistant", content: result.answer ?? "", result }]),
+    onError: (error) => setMessages((previous) => [...previous, { role: "error", content: (error as Error).message }]),
+  });
+
+  const send = (value: string) => {
+    const question = value.trim();
+    if (question.length < 2 || ask.isPending) return;
+    // 검증을 통과한 답변과 사용자 질문만 문맥으로 보냅니다(최근 6개).
+    const history = messages
+      .filter((message) => message.role === "user" || (message.role === "assistant" && message.result.status === "answered"))
+      .map((message) => ({ role: message.role as "user" | "assistant", content: message.content }))
+      .slice(-6);
+    setMessages((previous) => [...previous, { role: "user", content: question }]);
+    setInput("");
+    ask.mutate({ question, history });
   };
 
   return (
     <>
       {open && (
-        <div className="ask-sheet" role="dialog" aria-label="AI에게 리뷰 물어보기">
+        <div className="ask-sheet chat" role="dialog" aria-label="리뷰 챗봇">
+          {/* === [헤더] === */}
           <div className="ask-sheet-head">
-            <b>AI에게 리뷰 물어보기</b>
-            <button className="link-btn" onClick={() => setOpen(false)}>
-              닫기
-            </button>
+            <div>
+              <b>리뷰 챗봇</b>
+              <small className="bubble-meta">{productName} · 실제 리뷰 근거로만 답해요</small>
+            </div>
+            <div style={{ display: "flex", gap: 12 }}>
+              {messages.length > 0 && !ask.isPending && (
+                <button className="link-btn" onClick={() => setMessages([])}>
+                  새 대화
+                </button>
+              )}
+              <button className="link-btn" onClick={() => setOpen(false)}>
+                닫기
+              </button>
+            </div>
           </div>
-          <p className="sub">실제 리뷰에서 찾은 근거로만 답해요. 숫자는 서버가 계산한 값만 써요.</p>
 
-          {/* === [질문 입력] === */}
+          {/* === [대화 내용] === */}
+          <div className="chat-log">
+            {messages.length === 0 && (
+              <div className="bubble bot">
+                산 제품에 문제가 있거나 사기 전에 궁금한 점을 물어보세요. 다른 구매자 리뷰를 찾아서 비슷한 사례가
+                있는지, 얼마나 자주 나오는지 알려 드려요.
+                <div className="tags">
+                  {EXAMPLES.map((example) => (
+                    <button key={example} className="chip" onClick={() => send(example)}>
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {messages.map((message, index) =>
+              message.role === "user" ? (
+                <div key={index} className="bubble me">
+                  {message.content}
+                </div>
+              ) : message.role === "assistant" ? (
+                <AnswerBubble key={index} result={message.result} />
+              ) : (
+                <div key={index} className="bubble bot error-bubble">
+                  답변을 받지 못했어요: {message.content}
+                </div>
+              ),
+            )}
+            {ask.isPending && (
+              <div className="bubble bot">
+                <span className="badge ai">
+                  리뷰를 찾아 읽는 중 · <Elapsed />
+                </span>
+                <small className="bubble-meta">로컬 CPU 모델이라 1~4분 걸릴 수 있어요.</small>
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* === [입력창] === */}
           <form
             className="ask-form"
             onSubmit={(event) => {
               event.preventDefault();
-              submit(question);
+              send(input);
             }}
           >
             <input
-              value={question}
+              value={input}
               maxLength={500}
-              onChange={(event) => setQuestion(event.target.value)}
-              placeholder="예: 소음이 심한가요?"
+              onChange={(event) => setInput(event.target.value)}
+              placeholder={ask.isPending ? "답변을 기다리는 중이에요" : "예: 이거 샀는데 소리가 한쪽만 나와요"}
               aria-label="질문"
+              disabled={ask.isPending}
             />
-            <button className="ask" disabled={ask.isPending || question.trim().length < 2}>
-              {ask.isPending ? "답변 중…" : "질문"}
+            <button className="ask" disabled={ask.isPending || input.trim().length < 2}>
+              보내기
             </button>
           </form>
-          <div className="tags">
-            {EXAMPLES.map((example) => (
-              <button key={example} className="chip" onClick={() => submit(example)} disabled={ask.isPending}>
-                {example}
-              </button>
-            ))}
-          </div>
-
-          {/* === [진행·결과] === */}
-          {ask.isPending && (
-            <div className="ask-wait">
-              <span className="badge ai">
-                AI가 리뷰를 읽는 중 · <Elapsed running={ask.isPending} />
-              </span>
-              <p className="sub">로컬 CPU 모델이라 1~4분 걸릴 수 있어요. 창을 닫지 말아 주세요.</p>
-            </div>
-          )}
-          {ask.isError && <div className="error">{(ask.error as Error).message}</div>}
-          {ask.data && (
-            <div className="ask-result">
-              {ask.data.status === "answered" ? (
-                <>
-                  {ask.data.is_provisional && <span className="badge ai">일부 리뷰만 분석된 잠정 결과</span>}
-                  <p className="ask-answer">{ask.data.answer}</p>
-                  {ask.data.citations.length > 0 && <h4>근거 리뷰</h4>}
-                  {ask.data.citations.map((citation) => (
-                    <blockquote key={citation.review_id} className="quote">
-                      {citation.excerpt.replace(/<br\s*\/?>/gi, " ")}
-                      <small>
-                        ★{citation.rating} · {citation.date} · 리뷰 ID {citation.review_id.slice(0, 18)}…
-                      </small>
-                    </blockquote>
-                  ))}
-                </>
-              ) : (
-                <div className="error">
-                  근거를 검증할 수 있는 답변을 만들지 못했어요. 질문을 바꿔 다시 시도해 주세요.
-                  <br />
-                  <small>{ask.data.failure_reason}</small>
-                </div>
-              )}
-              {ask.data.notice && <p className="sub">{ask.data.notice}</p>}
-              <details className="original" style={{ marginTop: 12 }}>
-                <summary>
-                  AI가 사용한 도구 {ask.data.tool_calls.length}개 · {(ask.data.latency_ms / 1000).toFixed(0)}초 ·{" "}
-                  {ask.data.model}
-                </summary>
-                <ul>
-                  {ask.data.tool_calls.map((call, index) => (
-                    <li key={index}>
-                      {call.ok ? "✓" : "✗"} {TOOL_NAMES[call.tool] ?? call.tool} — {call.summary} ({call.duration_ms}ms)
-                    </li>
-                  ))}
-                  <li>
-                    답변 생성 {ask.data.generation_attempts}회 · 프롬프트 {ask.data.prompt_version}
-                  </li>
-                </ul>
-              </details>
-            </div>
-          )}
         </div>
       )}
 
-      {/* === [하단 고정 바] 구매 버튼 자리에 AI 질문 === */}
+      {/* === [하단 고정 바] 구매 버튼 자리에 리뷰 챗봇 === */}
       <div className="dock">
         <div className="dock-inner">
-          <p>이 상품 리뷰가 궁금하면 AI에게 물어보세요. 답변에는 실제 리뷰가 인용돼요.</p>
+          <p>이 제품 샀는데 문제가 있나요? 다른 구매자 리뷰를 근거로 AI가 답해 드려요.</p>
           <button className="ask" onClick={() => setOpen(!open)}>
-            {open ? "질문 창 닫기" : "AI에게 리뷰 물어보기"}
+            {open ? "챗봇 닫기" : `리뷰 챗봇에게 물어보기${messages.length ? ` (${messages.filter((m) => m.role === "user").length})` : ""}`}
           </button>
         </div>
       </div>
