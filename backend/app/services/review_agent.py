@@ -35,7 +35,7 @@ from backend.app.services.catalog import CatalogService, ProductNotFoundError
 from backend.app.services.embeddings import EmbeddingError
 from backend.app.services.review_search import ReviewSearchService
 
-AGENT_PROMPT_VERSION = "review-qa-prompt-v3-chat"
+AGENT_PROMPT_VERSION = "review-qa-prompt-v4-chat"
 # 분석 리뷰가 이보다 적으면 비율을 LLM에 주지 않습니다(예: 1건 중 1건 = 100% 같은 오해 방지).
 MIN_ANALYZED_FOR_RATES = 30
 PREVIOUS_ANSWER_CHARS = 200
@@ -347,8 +347,16 @@ class ReviewQuestionAgent:
     # === [노드 2] 답변 생성: 사실(FACTS)과 리뷰(REVIEWS, 신뢰 불가 데이터)를 분리해 전달 ===
     def _generate(self, state: AgentState) -> AgentState:
         payload = {
-            "HISTORY_previous_turns": state.get("history", []),
+            # 이전 답변은 모델이 그대로 베끼므로 넘기지 않고, 이전 사용자 질문만 맥락으로 줍니다.
+            "HISTORY_previous_turns": [
+                turn for turn in state.get("history", []) if turn["role"] == "user"
+            ],
             "question": state["question"],
+            "question_type": (
+                "앞선 질문에 이어서 묻는 후속 질문이다. 앞선 내용을 다시 설명하지 말고 이 질문에만 답하라."
+                if any(turn["role"] == "user" for turn in state.get("history", []))
+                else "새 질문"
+            ),
             "product": state["product_name"],
             "FACTS": state["facts"],
             "REVIEWS_untrusted_customer_text": state["reviews"],

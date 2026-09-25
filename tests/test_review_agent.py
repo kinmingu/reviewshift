@@ -89,7 +89,7 @@ def test_answer_with_valid_citations_and_tool_numbers() -> None:
     # 검색은 이 상품의 저장 월로 명시적으로 제한됩니다.
     assert search.calls[0]["product_id"] == PRODUCT
     assert search.calls[0]["months"] == ["2025-01", "2025-02"]
-    assert result.prompt_version == "review-qa-prompt-v3-chat"
+    assert result.prompt_version == "review-qa-prompt-v4-chat"
     assert result.search_query == "누수 문제 많나요?"
 
 
@@ -169,8 +169,11 @@ def test_chat_history_is_context_and_follow_up_search_uses_previous_question() -
     assert result.status == "answered"
     assert search.calls[0]["query"] == "이거 샀는데 물이 새요. 문제 있는 건가요? 다른 사람도 그래요?"
     payload = json.loads(llm.messages[0][1].content)
-    assert payload["HISTORY_previous_turns"][0]["role"] == "user"
+    # 이전 답변은 LLM에 넘기지 않습니다(베끼기 방지). 이전 사용자 질문만 맥락입니다.
+    assert [turn["role"] for turn in payload["HISTORY_previous_turns"]] == ["user"]
+    assert "99%" not in llm.messages[0][1].content
     assert payload["question"] == "다른 사람도 그래요?"
+    assert "후속 질문" in payload["question_type"]
     # 이전 답변의 수치는 FACTS가 아니므로 이번 답변에서 쓰면 거부됩니다.
     assert "99" not in json.dumps(payload["FACTS"])
     system = llm.messages[0][0].content
