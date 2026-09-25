@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import html
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from sqlalchemy import func, select
 
@@ -22,6 +23,15 @@ HTML_PATH = Path("data/reports/products.html")
 
 def amazon_url(parent_asin: str) -> str:
     return f"https://www.amazon.com/dp/{parent_asin}"
+
+
+def archive_url(parent_asin: str) -> str:
+    """단종·삭제된 상품은 현재 Amazon 주소가 없어서, 2023년 무렵 보관본을 봅니다(Wayback Machine)."""
+    return f"https://web.archive.org/web/2023/https://www.amazon.com/dp/{parent_asin}"
+
+
+def search_url(title: str) -> str:
+    return "https://www.amazon.com/s?k=" + quote_plus(title[:80])
 
 
 def load_rows() -> list[dict]:
@@ -68,20 +78,23 @@ def write_markdown(rows: list[dict]) -> None:
         "",
         "`python -m scripts.export_product_list`로 DB에서 생성한 목록입니다. 원문 이름·사진·리뷰는 같은",
         "parent_asin의 Amazon Reviews 2023 공식 메타데이터·리뷰에서 가져왔습니다. Amazon 링크는 현재 판매",
-        "페이지라 단종·변경되었을 수 있습니다. 평점 등록 수는 구매 수가 아닙니다.",
+        "페이지라 단종·삭제된 상품은 'Sorry' 페이지가 뜹니다. 그때는 2023년 무렵 웹 보관본이나 상품명 검색으로",
+        "확인하세요(데이터셋은 2023년에 수집됨). 평점 등록 수는 구매 수가 아닙니다.",
         "",
         f"- 상품 {len(rows)}개, 저장 리뷰 {sum(r['reviews'] for r in rows):,}건, "
         f"AI 분석 표본 {sum(r['sample'] or 0 for r in rows):,}건",
         "",
-        "| 카테고리 | 한국어 이름 (작성) | 원문 상품명 · 판매자 | parent_asin | 분석 기간 | 저장 리뷰 | AI 표본 | Amazon 평점 (등록 수) |",
-        "|---|---|---|---|---|---:|---:|---|",
+        "| 카테고리 | 한국어 이름 (작성) | 원문 상품명 · 판매자 | parent_asin | 확인 링크 | 분석 기간 | 저장 리뷰 | AI 표본 | Amazon 평점 (등록 수) |",
+        "|---|---|---|---|---|---|---:|---:|---|",
     ]
     for r in rows:
         title = r["title"] if len(r["title"]) <= 70 else r["title"][:70] + "…"
         rating = f"{r['rating']} ({r['rating_count']:,})" if r["rating"] and r["rating_count"] else "-"
         lines.append(
             f"| {r['category_ko']} | {r['title_ko']} ({r['name_source']}) | {title.replace('|', '/')} · {r['store']} "
-            f"| [{r['asin']}]({amazon_url(r['asin'])}) | {r['period']} | {r['reviews']} "
+            f"| [{r['asin']}]({amazon_url(r['asin'])}) "
+            f"| [2023 보관본]({archive_url(r['asin'])}) · [검색]({search_url(r['title'])}) "
+            f"| {r['period']} | {r['reviews']} "
             f"| {r['sample']} (목표 {r['sample_target']}) | {rating} |"
         )
     MD_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -96,7 +109,9 @@ def write_html(rows: list[dict]) -> None:
 <b>{html.escape(r['title_ko'])}</b><div class="en">{html.escape(r['title'])}</div>
 <div class="meta">ID <code>{r['asin']}</code> · {html.escape(r['period'])}<br>
 저장 리뷰 {r['reviews']}건 · AI 표본 {r['sample']}건 · 이름 {r['name_source']}</div>
-<a href="{amazon_url(r['asin'])}" target="_blank" rel="noopener">Amazon에서 확인 ↗</a></div></div>"""
+<a href="{amazon_url(r['asin'])}" target="_blank" rel="noopener">Amazon 현재 페이지 ↗</a><br>
+<a href="{archive_url(r['asin'])}" target="_blank" rel="noopener">2023년 무렵 보관본 ↗</a> ·
+<a href="{html.escape(search_url(r['title']))}" target="_blank" rel="noopener">상품명 검색 ↗</a></div></div>"""
         )
     page = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>ReviewShift 상품 확인</title>
 <style>body{{font-family:'Malgun Gothic',sans-serif;background:#faf8f5;color:#1f2a44;margin:24px}}
@@ -106,7 +121,8 @@ def write_html(rows: list[dict]) -> None:
 .body{{padding:12px;font-size:13px;line-height:1.5}}.cat{{color:#7c5cff;font-weight:700}}
 .en{{color:#8a8f98;font-size:12px;margin:4px 0}}.meta{{color:#4b5670;font-size:12px}}code{{font-size:12px}}
 a{{color:#2f6feb;font-weight:700;text-decoration:none}}</style></head><body>
-<h1>ReviewShift 분석 대상 상품 {len(rows)}개</h1><p>사진·한국어 이름·원문 이름·ID가 같은 상품인지 확인하는 페이지입니다.</p>
+<h1>ReviewShift 분석 대상 상품 {len(rows)}개</h1><p>사진·한국어 이름·원문 이름·ID가 같은 상품인지 확인하는 페이지입니다. 오래된 상품은 Amazon 현재 페이지가
+삭제되어 'Sorry'가 뜰 수 있습니다(데이터는 2023년 수집). 그때는 '2023년 무렵 보관본'이나 '상품명 검색'으로 확인하세요.</p>
 <div class="grid">{''.join(cards)}</div></body></html>"""
     HTML_PATH.parent.mkdir(parents=True, exist_ok=True)
     HTML_PATH.write_text(page, encoding="utf-8")
