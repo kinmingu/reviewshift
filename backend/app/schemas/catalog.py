@@ -27,6 +27,91 @@ class ProductSummary(BaseModel):
     source_rating_count: int | None
     available_months: list[str]
     source_mode: SourceMode
+    # 상품 카드용 활성 분석 요약. 분석된 리뷰가 없으면 비율은 null입니다.
+    analyzed_review_count: int = 0
+    positive_review_share: float | None = None
+    negative_review_share: float | None = None
+
+
+# === [상품 리뷰 리포트 응답] GET /api/v1/products/{id}/insights ===
+class AnalysisOverview(BaseModel):
+    total: int
+    succeeded: int
+    failed: int
+    in_progress: int
+    unprocessed: int
+    processing_rate: float | None
+    status: Literal["not_started", "in_progress", "complete", "partial_failure"]
+    analysis_version: str
+    model: str | None
+    prompt_version: str | None
+    label_schema_version: str | None
+
+
+class AspectInsight(BaseModel):
+    aspect: str
+    aspect_name_ko: str | None
+    detail_label: str
+    detail_name_ko: str | None
+    mention_count: int
+    positive_count: int
+    negative_count: int
+    neutral_count: int
+    uncertain_count: int
+    # 분모는 분류에 성공한 리뷰 수입니다. 성공 리뷰가 없으면 null입니다.
+    mention_rate: float | None
+    positive_rate: float | None
+    negative_rate: float | None
+
+
+class EvidenceExample(BaseModel):
+    review_id: str
+    rating: int
+    reviewed_at: datetime
+    evidence_span: str
+
+
+class ComplaintInsight(BaseModel):
+    aspect: str
+    aspect_name_ko: str | None
+    detail_label: str
+    detail_name_ko: str | None
+    negative_count: int
+    negative_rate: float | None
+    examples: list[EvidenceExample]
+
+
+class MonthlyInsight(BaseModel):
+    month: str
+    review_count: int
+    average_rating: float
+    analyzed_count: int
+    positive_review_share: float | None
+    negative_review_share: float | None
+
+
+class LatestChange(BaseModel):
+    baseline_month: str
+    target_month: str
+    signal_status: str
+    is_provisional: bool
+    top_negative_changes: list["ComparisonIssue"]
+
+
+class ProductInsightResponse(BaseModel):
+    product_id: str
+    source_mode: SourceMode
+    review_count: int
+    average_rating: float | None
+    rating_distribution: dict[int, int]
+    analysis: AnalysisOverview
+    positive_review_share: float | None
+    negative_review_share: float | None
+    aspects: list[AspectInsight]
+    top_complaints: list[ComplaintInsight]
+    monthly: list[MonthlyInsight]
+    latest_change: LatestChange | None
+    data_version: str
 
 
 class ProductListResponse(BaseModel):
@@ -242,3 +327,7 @@ class TranslationResponse(BaseModel):
     translation_model: str
     translation_prompt_version: str
     translated_at: datetime
+
+
+# LatestChange는 파일 뒤쪽에 정의된 ComparisonIssue를 참조하므로 마지막에 확정합니다.
+LatestChange.model_rebuild()

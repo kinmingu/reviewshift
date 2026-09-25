@@ -55,6 +55,23 @@ fixture와 실제 데이터는 한 목록에서 섞이지 않는다.
 `text_ko`, `translation_model`, `translation_prompt_version`, `translated_at`을 함께 반환하고,
 미번역 리뷰의 해당 필드는 `null`이다. 번역문을 원문 인용으로 취급하지 않는다.
 
+## GET `/api/v1/products/{product_id}/insights`
+
+상품 상세 화면의 리뷰 리포트다. 모든 수치는 SQL 집계이며 LLM이 계산하지 않는다.
+
+- `rating_distribution`: 저장된 적격 리뷰의 별점 1~5 건수, `average_rating`: 그 평균
+- `analysis`: 상품 전체 기간의 활성 분석 처리 현황과 버전(`status`는 비교 API와 같은 규칙)
+- `positive_review_share`, `negative_review_share`: 분석 성공 리뷰 중 긍정/부정 라벨이 하나 이상인
+  리뷰 비율. 분석 성공 리뷰가 없으면 `null`
+- `aspects`: 항목별 언급 리뷰 수와 극성별 리뷰 수·비율(분모 = 분석 성공 리뷰)
+- `top_complaints`: 부정 리뷰 수 상위 3개 항목과 최신순 대표 근거(리뷰당 1개, 최대 3개)
+- `monthly`: 월별 리뷰 수·평균 별점·분석 성공 수·긍정/부정 리뷰 비율
+- `latest_change`: 인접한 마지막 두 달의 비교 결과. 기간을 결과를 보고 고르지 않는다. 부정 항목 중
+  증가한 것만 증가폭 순으로 최대 3개. `is_provisional=true`이면 잠정 결과다.
+
+상품 목록·상세의 상품 요약에는 `analyzed_review_count`, `positive_review_share`,
+`negative_review_share`가 추가되었다(분석 전이면 0 / `null`).
+
 ## GET `/api/v1/products/{product_id}/comparison`
 
 쿼리:

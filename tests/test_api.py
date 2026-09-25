@@ -124,6 +124,54 @@ def test_comparison_reports_failure_tolerance_threshold(client: TestClient) -> N
     assert response.json()["thresholds"]["max_failure_rate"] == pytest.approx(0.05)
 
 
+def test_product_insights_are_sql_aggregates_of_fixture_labels(client: TestClient) -> None:
+    response = client.get("/api/v1/products/fixture-prod-coffee/insights")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source_mode"] == "fixture"
+    assert payload["review_count"] == 12
+    assert sum(payload["rating_distribution"].values()) == 12
+    assert set(payload["rating_distribution"]) == {"1", "2", "3", "4", "5"}
+    assert payload["analysis"]["succeeded"] == 12
+    assert payload["analysis"]["status"] == "complete"
+
+    # 누수 불만은 1월 1건 + 2월 3건 = 고유 리뷰 4건, 분모는 분석 성공 12건입니다.
+    leak = next(
+        item for item in payload["aspects"] if item["detail_label"] == "carafe leak"
+    )
+    assert leak["negative_count"] == 4
+    assert leak["negative_rate"] == pytest.approx(4 / 12)
+    complaint = payload["top_complaints"][0]
+    assert complaint["detail_label"] == "carafe leak"
+    assert 1 <= len(complaint["examples"]) <= 3
+    assert len({item["review_id"] for item in complaint["examples"]}) == len(
+        complaint["examples"]
+    )
+
+    assert [item["month"] for item in payload["monthly"]] == ["2025-01", "2025-02"]
+    assert all(item["analyzed_count"] == 6 for item in payload["monthly"])
+
+    # 최근 변화는 항상 인접한 마지막 두 달이며, 부정 증가 항목만 증가폭 순으로 보여 줍니다.
+    change = payload["latest_change"]
+    assert (change["baseline_month"], change["target_month"]) == ("2025-01", "2025-02")
+    changes = [item["change_pp"] for item in change["top_negative_changes"]]
+    assert changes == sorted(changes, reverse=True)
+    assert all(value > 0 for value in changes)
+    assert all(item["polarity"] == "negative" for item in change["top_negative_changes"])
+
+
+def test_product_cards_include_analysis_shares(client: TestClient) -> None:
+    payload = client.get("/api/v1/products", params={"query": "Coffee"}).json()
+    card = payload["items"][0]
+    assert card["analyzed_review_count"] == 12
+    assert 0 <= card["negative_review_share"] <= 1
+    assert 0 <= card["positive_review_share"] <= 1
+
+
+def test_insights_for_missing_product_returns_404(client: TestClient) -> None:
+    assert client.get("/api/v1/products/not-a-product/insights").status_code == 404
+
+
 def _issue(payload: dict, aspect: str, detail: str, polarity: str) -> dict:
     return next(
         item

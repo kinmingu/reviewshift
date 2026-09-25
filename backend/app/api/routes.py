@@ -15,6 +15,7 @@ from backend.app.schemas.catalog import (
     EvaluationSaveRequest,
     HealthResponse,
     ProductDetail,
+    ProductInsightResponse,
     ProductListResponse,
     ReviewListResponse,
     TranslationResponse,
@@ -172,6 +173,17 @@ def products(
 def product_detail(product_id: str, session: DbSession) -> ProductDetail:
     try:
         return _service(session).product_detail(product_id)
+    except ProductNotFoundError as exc:
+        raise _not_found(product_id) from exc
+
+
+@router.get(
+    "/api/v1/products/{product_id}/insights", response_model=ProductInsightResponse
+)
+def product_insights(product_id: str, session: DbSession) -> ProductInsightResponse:
+    """상품 상세의 리뷰 리포트: 별점 분포, 항목별 평가, 주요 불만, 월별 추이, 최근 두 달 변화."""
+    try:
+        return _service(session).product_insights(product_id)
     except ProductNotFoundError as exc:
         raise _not_found(product_id) from exc
 
