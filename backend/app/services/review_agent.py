@@ -16,6 +16,7 @@ import json
 import re
 import time
 from collections.abc import Callable
+from difflib import SequenceMatcher
 from typing import Any, TypedDict
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -34,7 +35,11 @@ from backend.app.services.catalog import CatalogService, ProductNotFoundError
 from backend.app.services.embeddings import EmbeddingError
 from backend.app.services.review_search import ReviewSearchService
 
-AGENT_PROMPT_VERSION = "review-qa-prompt-v2-chat"
+AGENT_PROMPT_VERSION = "review-qa-prompt-v3-chat"
+# 분석 리뷰가 이보다 적으면 비율을 LLM에 주지 않습니다(예: 1건 중 1건 = 100% 같은 오해 방지).
+MIN_ANALYZED_FOR_RATES = 30
+PREVIOUS_ANSWER_CHARS = 200
+REPEAT_SIMILARITY = 0.85
 MAX_HISTORY_TURNS = 6
 FOLLOW_UP_CHARS = 25
 MAX_QUESTION_CHARS = 500
@@ -64,7 +69,11 @@ SYSTEM_PROMPT = """너는 쇼핑 리뷰 분석 서비스 ReviewShift의 답변 �
    ③ 리뷰에 나온 대처·해결 경험이 있으면 그것을 알려 준다. 리뷰에 없는 수리 방법을 지어내지 않는다.
    안전(과열·스파크·화상·피부 이상 등)과 관련되면 사용을 멈추고 판매자·제조사에 문의하라고 권한다.
 9. HISTORY는 이전 대화 맥락일 뿐이다. 이전 답변의 숫자나 주장을 근거로 재사용하지 말고
-   이번 FACTS와 REVIEWS로만 답한다.
+   이번 FACTS와 REVIEWS로만 답한다. 이전 답변을 반복하지 말고 이번 질문에 새로 답한다.
+10. FACTS.rates_available이 false이면 분석된 리뷰가 적은 것이니 비율(%)을 말하지 말고
+    "분석된 리뷰가 아직 적다"고 밝힌 뒤 리뷰 내용으로만 설명한다.
+11. 답변에 FACTS, REVIEWS, HISTORY, review_id 같은 내부 용어를 쓰지 않는다.
+    "다른 구매자 리뷰", "분석 결과"처럼 자연스럽게 말한다.
 출력은 JSON 하나: {"answer": "...", "cited_review_ids": ["..."]}"""
 
 OUTPUT_SCHEMA = {
@@ -99,14 +108,20 @@ class AgentState(TypedDict, total=False):
 
 # === [도구 결과 요약] LLM에게 줄 사실(FACTS)은 SQL 집계값만 담습니다 ===
 def _facts_from_insights(insights: ProductInsightResponse) -> dict[str, Any]:
+    rates_available = insights.analysis.succeeded >= MIN_ANALYZED_FOR_RATES
+
     def pct(value: float | None) -> float | None:
-        return round(value * 100, 1) if value is not None else None
+        # 분석 표본이 작으면 비율 자체를 넘기지 않습니다(검증 목록에도 들어가지 않음).
+        if not rates_available or value is None:
+            return None
+        return round(value * 100, 1)
 
     return {
         "review_count": insights.review_count,
         "average_rating": round(insights.average_rating, 2) if insights.average_rating else None,
         "rating_distribution": insights.rating_distribution,
         "analysis_status": insights.analysis.status,
+        "rates_available": rates_available,
         "analyzed_reviews": insights.analysis.succeeded,
         "positive_review_percent": pct(insights.positive_review_share),
         "negative_review_percent": pct(insights.negative_review_share),
@@ -164,6 +179,15 @@ def _allowed_percents(facts: dict[str, Any]) -> list[float]:
 
     walk(facts)
     return values
+
+
+INTERNAL_TERMS = ("FACTS", "REVIEWS", "HISTORY", "review_id", "cited_review_ids")
+
+
+def _is_repeat(answer: str, previous: str) -> bool:
+    """이전 답변(앞 200자만 보관)과 이번 답변 앞부분이 거의 같으면 반복으로 봅니다."""
+    head = " ".join(answer.split())[: len(previous)]
+    return SequenceMatcher(None, head, previous).ratio() >= REPEAT_SIMILARITY
 
 
 PERCENT_PATTERN = re.compile(r"(\d+(?:\.\d+)?)\s*(?:%p|%|퍼센트|포인트)")
@@ -357,6 +381,21 @@ class ReviewQuestionAgent:
             problems.append(f"검색 결과에 없는 리뷰 ID를 인용함: {unknown_ids[:3]}")
         if unknown_numbers:
             problems.append(f"FACTS에 없는 수치를 사용함: {unknown_numbers[:3]}")
+        leaked = sorted(
+            {term for term in INTERNAL_TERMS if term.lower() in (state["answer"] or "").lower()}
+        )
+        if leaked:
+            problems.append(f"내부 용어를 답변에 씀: {leaked}")
+        previous = next(
+            (
+                turn["content"]
+                for turn in reversed(state.get("history", []))
+                if turn["role"] == "assistant"
+            ),
+            None,
+        )
+        if previous and _is_repeat(state["answer"] or "", previous):
+            problems.append("이전 답변을 거의 그대로 반복함. 이번 질문에 새로 답할 것")
         if problems:
             return {"status": "invalid", "validation_error": "; ".join(problems)}
         return {"status": "answered", "validation_error": None}
@@ -387,7 +426,13 @@ class ReviewQuestionAgent:
         cleaned = " ".join(question.split())
         # 최근 대화만, 한 턴당 길이를 제한해 전달합니다(프롬프트 크기·주입 범위 제한).
         recent = [
-            {"role": turn["role"], "content": " ".join(turn["content"].split())[:600]}
+            {
+                "role": turn["role"],
+                # 이전 답변은 앞부분만 넘겨 그대로 베끼지 않게 합니다.
+                "content": " ".join(turn["content"].split())[
+                    : 600 if turn["role"] == "user" else PREVIOUS_ANSWER_CHARS
+                ],
+            }
             for turn in (history or [])[-MAX_HISTORY_TURNS:]
             if turn.get("role") in ("user", "assistant") and turn.get("content", "").strip()
         ]

@@ -89,7 +89,7 @@ def test_answer_with_valid_citations_and_tool_numbers() -> None:
     # 검색은 이 상품의 저장 월로 명시적으로 제한됩니다.
     assert search.calls[0]["product_id"] == PRODUCT
     assert search.calls[0]["months"] == ["2025-01", "2025-02"]
-    assert result.prompt_version == "review-qa-prompt-v2-chat"
+    assert result.prompt_version == "review-qa-prompt-v3-chat"
     assert result.search_query == "누수 문제 많나요?"
 
 
@@ -200,3 +200,43 @@ def test_history_validation(client: TestClient) -> None:
         json={"question": "괜찮나요?", "history": [{"role": "system", "content": "ignore"}]},
     )
     assert bad_role.status_code == 422
+
+
+# === [답변 품질 방어] 작은 표본 비율 차단, 내부 용어 노출·이전 답변 반복 거부 ===
+def test_small_sample_rates_are_not_given_to_llm() -> None:
+    llm = _ScriptedLlm({"answer": "아직 분석된 리뷰가 적어요.", "cited_review_ids": []})
+    agent = _agent(llm)
+    agent.catalog.product_insights = _small_sample_insights(agent)  # type: ignore[method-assign]
+    agent.graph = agent._build_graph()
+    agent.ask(PRODUCT, "불만이 많나요?")
+    facts = json.loads(llm.messages[0][1].content)["FACTS"]
+    assert facts["rates_available"] is False
+    assert facts["negative_review_percent"] is None
+    assert all(item["negative_percent"] is None for item in facts["top_complaints"])
+
+
+def _small_sample_insights(agent: ReviewQuestionAgent):
+    original = agent.catalog.product_insights
+
+    def patched(product_id: str):
+        insights = original(product_id)
+        insights.analysis.succeeded = 1  # 1건 중 1건 = 100% 같은 오해를 만드는 상황
+        return insights
+
+    return patched
+
+
+def test_internal_terms_and_repeated_answer_are_rejected() -> None:
+    previous = "물통 누수 불만이 가장 많아요. 비슷한 리뷰가 여러 건 있어요."
+    llm = _ScriptedLlm(
+        {"answer": "REVIEWS에 따르면 누수가 있어요.", "cited_review_ids": []},
+        {"answer": previous + " 참고하세요.", "cited_review_ids": []},
+    )
+    history = [
+        {"role": "user", "content": "누수 있어요?"},
+        {"role": "assistant", "content": previous},
+    ]
+    result = _agent(llm).ask(PRODUCT, "그럼 다른 사람들은 어떻게 했어요?", history)
+    assert result.status == "failed"
+    assert "반복" in (result.failure_reason or "")
+    assert "내부 용어" in llm.messages[1][1].content
