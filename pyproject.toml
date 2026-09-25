@@ -1,6 +1,9 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+    "real_data: 개발 DB의 실제 Amazon 데이터와 로컬 data/evaluation 파일을 테스트 DB로 복사해 사용",
+]
 
 [tool.ruff]
 target-version = "py312"

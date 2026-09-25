@@ -2,6 +2,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from sqlalchemy import delete
 
 from backend.app.core.database import SessionLocal
@@ -16,6 +17,7 @@ from backend.app.services.months import month_bounds
 from backend.app.services.review_classification import review_input_hash
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+pytestmark = pytest.mark.real_data
 
 
 def test_sql_aggregation_keeps_versions_separate_and_counts_review_once() -> None:

@@ -1,8 +1,12 @@
+import pytest
+
 from backend.app.core.database import SessionLocal
 from backend.app.services.analysis_sampling import (
     sample_summary,
     select_analysis_sample,
 )
+
+pytestmark = pytest.mark.real_data
 
 
 def test_trial_and_evaluation_samples_are_balanced_and_disjoint() -> None:

@@ -32,6 +32,7 @@ def test_real_categories_include_all_seven_official_targets(client: TestClient) 
     assert "Appliances" not in response.json()["items"]
 
 
+@pytest.mark.real_data
 def test_default_real_catalog_has_two_products_per_official_category(
     client: TestClient,
 ) -> None:
@@ -187,6 +188,7 @@ def test_review_filter_returns_original_evidence(client: TestClient) -> None:
     assert all(label["evidence_span"] in wet_counter["text"] for label in leak_labels)
 
 
+@pytest.mark.real_data
 def test_real_products_are_separate_and_unclassified(client: TestClient) -> None:
     response = client.get(
         "/api/v1/products",
@@ -228,6 +230,7 @@ def test_real_products_are_separate_and_unclassified(client: TestClient) -> None
     assert comparison["coverage"]["target_average_rating"] is not None
 
 
+@pytest.mark.real_data
 def test_electronics_product_can_be_searched_by_korean_display_name(
     client: TestClient,
 ) -> None:
@@ -244,6 +247,7 @@ def test_electronics_product_can_be_searched_by_korean_display_name(
     assert payload["items"][0]["source_rating_count"] == 50896
 
 
+@pytest.mark.real_data
 def test_real_product_keeps_korean_summary_and_original_review_source(
     client: TestClient,
 ) -> None:

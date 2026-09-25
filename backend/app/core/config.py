@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     app_env: str = "development"
     log_level: str = "INFO"
     database_url: str
+    # pytest 전용 DB입니다. 개발 DB와 분리하지 않으면 테스트가 실제 평가 입력을 덮어씁니다.
+    test_database_url: str | None = None
     source_mode: str = "fixture"
     analysis_min_review_count: int = 30
     analysis_min_negative_count: int = 5

@@ -1,7 +1,11 @@
 import csv
 import io
 
+import pytest
 from fastapi.testclient import TestClient
+
+# 평가 대상 140건은 실제 리뷰이므로 테스트 DB에 복사된 실제 데이터가 필요합니다.
+pytestmark = pytest.mark.real_data
 
 DATASET = "human-eval-140-v1"
 

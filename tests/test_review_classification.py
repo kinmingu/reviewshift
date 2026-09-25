@@ -261,6 +261,9 @@ class _AlwaysFailClassifier:
         raise EvidenceValidationError("test evidence failure")
 
 
+real_data = pytest.mark.real_data
+
+
 def _create_test_run(run_id: str) -> str:
     trial = json.loads(
         (PROJECT_ROOT / "data" / "evaluation" / "trial_70.json").read_text(
@@ -294,6 +297,7 @@ def _delete_test_run(run_id: str) -> None:
         session.commit()
 
 
+@real_data
 def test_processing_is_idempotent_for_same_version_and_input() -> None:
     run_id = "test-analysis-idempotency"
     review_id = _create_test_run(run_id)
@@ -331,6 +335,7 @@ def test_processing_is_idempotent_for_same_version_and_input() -> None:
         _delete_test_run(run_id)
 
 
+@real_data
 def test_validation_failure_is_retried_and_recorded() -> None:
     run_id = "test-analysis-retry"
     review_id = _create_test_run(run_id)
@@ -360,6 +365,7 @@ def test_validation_failure_is_retried_and_recorded() -> None:
         _delete_test_run(run_id)
 
 
+@real_data
 def test_explicit_retry_preserves_cumulative_attempt_count() -> None:
     run_id = "test-analysis-cumulative-retry"
     review_id = _create_test_run(run_id)
@@ -416,6 +422,7 @@ def test_partial_and_failed_analysis_states_are_distinct() -> None:
     )
 
 
+@real_data
 def test_product_month_selection_includes_every_eligible_review() -> None:
     with SessionLocal() as session:
         ids = product_month_review_ids(

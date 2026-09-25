@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from streamlit.testing.v1 import AppTest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +28,7 @@ def test_catalog_and_product_detail_smoke(monkeypatch, live_api_url: str) -> Non
     assert any("AI 질문은 아직 구현하지 않았습니다" in info.value for info in page.info)
 
 
+@pytest.mark.real_data
 def test_real_catalog_detail_shows_monthly_data_and_analysis_pending(
     monkeypatch, live_api_url: str
 ) -> None:
@@ -55,6 +57,7 @@ def test_real_catalog_detail_shows_monthly_data_and_analysis_pending(
     assert any("영어 원문" in info.value for info in page.info)
 
 
+@pytest.mark.real_data
 def test_electronics_catalog_shows_each_product_review_count(
     monkeypatch, live_api_url: str
 ) -> None:
@@ -89,6 +92,7 @@ def test_electronics_catalog_shows_each_product_review_count(
     assert len(page.dataframe) >= 2
 
 
+@pytest.mark.real_data
 def test_human_evaluation_screen_is_separate_and_blind(
     monkeypatch, live_api_url: str
 ) -> None:

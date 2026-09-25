@@ -49,23 +49,11 @@ docker compose up -d db
 
 `.env`에는 실제 비밀 값을 저장할 수 있으므로 Git에 포함하지 않는다.
 
-## 실제 Appliances 데이터 준비
+## 기존 Appliances 데이터
 
-건조 실행으로 정확한 대상과 크기를 먼저 확인한다.
-
-```powershell
-.\.venv\Scripts\python.exe -m scripts.download_amazon_appliances
-```
-
-명시적으로 다운로드하고 전체 데이터를 프로파일링한 뒤 선정된 상품만 적재한다.
-
-```powershell
-.\.venv\Scripts\python.exe -m scripts.download_amazon_appliances --execute
-.\.venv\Scripts\python.exe -m scripts.profile_amazon_appliances
-.\.venv\Scripts\python.exe -m scripts.import_amazon_appliances
-```
-
-다운로드 대상은 고정 리비전의 Parquet 3개, 총 488,307,356바이트다. 원본과 조사 산출물은 `data/` 아래에 저장되고 Git으로 추적하지 않는다. 가져오기는 동일 입력으로 다시 실행해도 리뷰가 중복 저장되지 않는다.
+초기 검증에 쓴 Appliances 수집·적재 스크립트는 7개 카테고리 도구로 대체되어 삭제했다
+(커밋 `4105d10`에서 복구 가능). DB의 Appliances 상품 3개와 리뷰 7,801건은 삭제하지 않았으며,
+필요할 때 쓸 삭제 SQL은 [docs/cleanup.md](docs/cleanup.md)에 적어 두었다.
 
 ## 실행
 
@@ -95,6 +83,14 @@ docker compose up -d db
 .\.venv\Scripts\alembic.exe -c backend/alembic.ini check
 .\.venv\Scripts\python.exe -m pytest -q
 ```
+
+pytest는 `.env`의 `TEST_DATABASE_URL`(예: `reviewshift_test`) DB에서만 실행된다. 값이 없거나,
+DB 이름에 `test`가 없거나, 개발 DB와 같으면 테스트를 시작하지 않는다. 테스트 DB가 없으면 자동으로
+만들고 마이그레이션과 합성 fixture를 적재한다.
+
+`real_data` 표식 테스트는 개발 DB의 실제 상품·리뷰를 테스트 DB로 **읽어서 복사**한 뒤 실행한다.
+개발 DB에는 쓰지 않는다. 개발 DB에 실제 데이터가 없거나 `data/evaluation/` 파일이 없으면 이
+테스트들은 건너뛴다. 실제 데이터 없이 실행하려면 `pytest -m "not real_data"`를 쓴다.
 
 ## 아직 하지 않은 작업
 
