@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     analysis_max_failure_rate: float = 0.05
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen3.5:latest"
+    # AI 질문 답변 생성 제한 시간(CPU에서 분류 배치와 겹치면 대기 시간이 늘어납니다).
+    agent_timeout_seconds: float = 240
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",

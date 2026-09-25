@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from backend.app.core.config import get_settings
 from backend.app.core.database import get_db
 from backend.app.schemas.catalog import (
+    AgentAnswerResponse,
+    AgentQuestionRequest,
     CategoryListResponse,
     ComparisonResponse,
     EvaluationItemResponse,
@@ -32,6 +34,7 @@ from backend.app.services.human_evaluation import (
     EvaluationValidationError,
     HumanEvaluationService,
 )
+from backend.app.services.review_agent import AgentUnavailableError, ReviewQuestionAgent
 from backend.app.services.review_search import ReviewSearchService
 from backend.app.services.review_translation import TranslationError
 
@@ -189,6 +192,23 @@ def product_insights(product_id: str, session: DbSession) -> ProductInsightRespo
         return _service(session).product_insights(product_id)
     except ProductNotFoundError as exc:
         raise _not_found(product_id) from exc
+
+
+@router.post(
+    "/api/v1/products/{product_id}/questions", response_model=AgentAnswerResponse
+)
+def ask_product_question(
+    product_id: str, payload: AgentQuestionRequest, session: DbSession
+) -> AgentAnswerResponse:
+    """상품 리뷰 질문 Agent. 답변은 도구 수치와 실제 리뷰 인용이 검증된 경우에만 반환합니다."""
+    try:
+        return ReviewQuestionAgent(session).ask(product_id, payload.question)
+    except ProductNotFoundError as exc:
+        raise _not_found(product_id) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except AgentUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=f"AI 모델 응답 실패: {exc}") from exc
 
 
 @router.get("/api/v1/products/{product_id}/search", response_model=ReviewSearchResponse)

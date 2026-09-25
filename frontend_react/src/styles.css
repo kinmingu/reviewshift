@@ -298,6 +298,38 @@ mark.neutral, mark.uncertain { background: var(--highlight); }
 @keyframes shimmer { to { background-position: -200% 0; } }
 .error { background: var(--negative-soft); color: var(--negative); padding: 14px 16px; border-radius: var(--radius-md); font-weight: 600; }
 
+/* === [AI 질문 패널] 하단 바 위에 뜨는 시트 === */
+.ask-sheet {
+  position: fixed;
+  right: max(20px, calc((100vw - 1180px) / 2 + 20px));
+  bottom: 84px;
+  width: min(520px, calc(100vw - 28px));
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 42, 68, 0.2);
+  padding: 20px;
+  z-index: 30;
+}
+.ask-sheet-head { display: flex; justify-content: space-between; align-items: center; font-size: 17px; }
+.ask-form { display: flex; gap: 8px; margin-bottom: 10px; }
+.ask-form input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; font: inherit; }
+.ask-form .ask { padding: 12px 18px; }
+.ask-wait { margin-top: 14px; }
+.ask-result { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+.ask-result h4 { margin: 14px 0 4px; font-size: 14px; }
+.ask-answer { line-height: 1.7; font-size: 15px; white-space: pre-line; }
+.ask-result .quote { border-left-color: var(--ai); }
+.ask-result ul { padding-left: 18px; font-size: 13px; color: var(--ink-soft); line-height: 1.7; }
+
+/* === [리뷰 의미 검색] === */
+.semantic { display: flex; gap: 8px; margin-bottom: 12px; }
+.semantic input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px; font: inherit; background: var(--paper); }
+.semantic button { border: 0; border-radius: 999px; padding: 10px 18px; background: var(--ink); color: #fff; font-weight: 700; }
+.similarity { font-size: 12px; font-weight: 700; color: var(--ai); }
+
 /* === [반응형] 태블릿·모바일 === */
 @media (max-width: 900px) {
   .catalog { grid-template-columns: minmax(0, 1fr); }

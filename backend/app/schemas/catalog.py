@@ -348,3 +348,40 @@ class ReviewSearchResponse(BaseModel):
     embedded_reviews: int
     total_reviews: int
     items: list[ReviewSearchHit]
+
+
+# === [AI 질문 Agent] POST /api/v1/products/{id}/questions ===
+class AgentQuestionRequest(BaseModel):
+    question: str = Field(min_length=2, max_length=500)
+
+
+class AgentToolCall(BaseModel):
+    tool: str
+    arguments: dict[str, object]
+    ok: bool
+    duration_ms: int
+    summary: str
+
+
+class AgentCitation(BaseModel):
+    review_id: str
+    rating: int
+    date: str
+    excerpt: str
+
+
+class AgentAnswerResponse(BaseModel):
+    product_id: str
+    question: str
+    # answered: 인용·수치 검증 통과 / failed: 재생성 후에도 검증 실패(답변 비공개)
+    status: Literal["answered", "failed"]
+    answer: str | None
+    citations: list[AgentCitation]
+    tool_calls: list[AgentToolCall]
+    generation_attempts: int
+    failure_reason: str | None
+    notice: str | None
+    is_provisional: bool
+    model: str
+    prompt_version: str
+    latency_ms: int

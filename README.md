@@ -71,7 +71,11 @@ npm install
 npm run dev
 ```
 
-브라우저에서 `http://127.0.0.1:5173`을 연다. `/api` 요청은 Vite가 8000번 API로 전달하며, 다른 포트의
+브라우저에서 `http://127.0.0.1:5173`을 연다. 상품 상세의 **리뷰에서 찾기**는 bge-m3 의미 검색이라
+한국어로 입력해도 영어 리뷰를 찾는다(임베딩 생성 필요: `python -m scripts.embed_reviews --all`,
+약 0.6초/건). 하단 **AI에게 리뷰 물어보기**는 LangGraph Agent가 SQL 리포트와 검색 리뷰로 답하며,
+인용 리뷰 ID와 수치를 검증한 답만 보여 준다. 로컬 CPU라 답변까지 1~4분 걸린다. 필요한 Ollama
+모델: `qwen3.5:latest`, `bge-m3`. `/api` 요청은 Vite가 8000번 API로 전달하며, 다른 포트의
 API를 쓰려면 `$env:API_TARGET="http://127.0.0.1:8001"; npm run dev`처럼 지정한다. 타입 검사와 빌드는
 `npm run build`다. 아래 Streamlit 화면은 이전 버전(개발·사람 평가용)으로 유지한다.
 
@@ -116,8 +120,6 @@ DB 이름에 `test`가 없거나, 개발 DB와 같으면 테스트를 시작하�
 
 - 사람 정답 140건 기반 분류 정확도·F1 평가
 - 전체 5,224건 항목별 감성 분류와 전체 리뷰 선행 번역
-- RAG, Agent, AI 질문 API
-- React 전환
 - 전체 Amazon 데이터 수집이나 모델 가중치 다운로드
 - 외부 공개 배포와 운영 보안 설정
 

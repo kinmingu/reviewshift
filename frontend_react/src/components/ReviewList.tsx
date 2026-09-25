@@ -1,11 +1,11 @@
 // =====================================================================
-// [리뷰 원문 목록] 월 탭 · 좋아요/아쉬워요 필터 · 항목 필터 · 근거 문장 강조
+// [리뷰 원문 목록] 의미 검색 · 월 탭 · 좋아요/아쉬워요 필터 · 항목 필터 · 근거 문장 강조
 // 근거 강조는 서버가 원문에서 검증한 구간(evidence_span)만 표시합니다.
 // =====================================================================
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 
-import { api, type AspectInsight, type Review, type ReviewLabel } from "../api";
+import { api, searchReviews, type AspectInsight, type Review, type ReviewLabel } from "../api";
 import { POLARITY_LABEL, dateLabel, labelName, monthLabel } from "../lib/format";
 
 // Amazon 원문에는 <br /> 태그가 글자로 들어 있어, 위치 계산이 끝난 조각을 표시할 때만 줄바꿈으로 바꿉니다.
@@ -84,6 +84,70 @@ interface Props {
   aspects: AspectInsight[];
 }
 
+// === [리뷰에서 찾기] 한국어로 입력해도 영어 리뷰를 의미로 찾습니다(상품의 저장 월 전체 대상) ===
+function SemanticSearch({ productId, months }: { productId: string; months: string[] }) {
+  const [input, setInput] = useState("");
+  const [query, setQuery] = useState("");
+  const result = useQuery({
+    queryKey: ["search", productId, query],
+    queryFn: () => searchReviews(productId, query, months),
+    enabled: query.length > 0,
+  });
+  return (
+    <>
+      <form
+        className="semantic"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setQuery(input.trim());
+        }}
+      >
+        <input
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          placeholder="리뷰에서 찾기 · 예: 너무 뜨거워요, 금방 고장, 소음"
+          maxLength={300}
+          aria-label="리뷰 의미 검색"
+        />
+        <button>찾기</button>
+        {query && (
+          <button
+            type="button"
+            style={{ background: "var(--paper-deep)", color: "var(--ink-soft)" }}
+            onClick={() => {
+              setQuery("");
+              setInput("");
+            }}
+          >
+            해제
+          </button>
+        )}
+      </form>
+      {query && (
+        <div style={{ marginBottom: 20 }}>
+          {result.isLoading && <p className="sub">의미가 비슷한 리뷰를 찾는 중…</p>}
+          {result.isError && <div className="error">{(result.error as Error).message}</div>}
+          {result.data && (
+            <>
+              <p className="sub">
+                “{result.data.query}”와 의미가 가까운 리뷰 {result.data.items.length}건
+                {result.data.embedded_reviews < result.data.total_reviews &&
+                  ` · 검색 준비된 리뷰 ${result.data.embedded_reviews}/${result.data.total_reviews}건 대상`}
+              </p>
+              {result.data.items.map((item) => (
+                <div key={item.review.id}>
+                  <span className="similarity">유사도 {(item.similarity * 100).toFixed(0)}</span>
+                  <ReviewItem review={item.review} />
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function ReviewList({ productId, months, aspects }: Props) {
   const [month, setMonth] = useState(months[months.length - 1]);
   const [polarity, setPolarity] = useState<"" | "positive" | "negative">("");
@@ -105,6 +169,7 @@ export default function ReviewList({ productId, months, aspects }: Props) {
 
   return (
     <>
+      <SemanticSearch productId={productId} months={months} />
       <div className="toolbar">
         {months.map((value) => (
           <button key={value} className={`chip ${value === month ? "active" : ""}`} onClick={() => setMonth(value)}>

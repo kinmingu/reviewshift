@@ -174,3 +174,50 @@ export const api = {
       ...params,
     }),
 };
+
+// === [의미 검색 · AI 질문] ===
+export interface SearchResult {
+  query: string;
+  months: string[];
+  embedded_reviews: number;
+  total_reviews: number;
+  items: { similarity: number; review: Review }[];
+}
+
+export interface AgentAnswer {
+  status: "answered" | "failed";
+  answer: string | null;
+  citations: { review_id: string; rating: number; date: string; excerpt: string }[];
+  tool_calls: { tool: string; ok: boolean; duration_ms: number; summary: string }[];
+  generation_attempts: number;
+  failure_reason: string | null;
+  notice: string | null;
+  is_provisional: boolean;
+  model: string;
+  prompt_version: string;
+  latency_ms: number;
+}
+
+export async function searchReviews(id: string, query: string, months: string[]): Promise<SearchResult> {
+  const params = new URLSearchParams({ q: query, limit: "8" });
+  months.forEach((month) => params.append("month", month));
+  const response = await fetch(`/api/v1/products/${id}/search?${params}`);
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(typeof body.detail === "string" ? body.detail : `검색 실패 (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function askQuestion(id: string, question: string): Promise<AgentAnswer> {
+  const response = await fetch(`/api/v1/products/${id}/questions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(typeof body.detail === "string" ? body.detail : `질문 실패 (${response.status})`);
+  }
+  return response.json();
+}

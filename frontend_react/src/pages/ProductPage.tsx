@@ -3,13 +3,14 @@
 //   1. 상품 정보(이미지·이름·평점)       2. 한눈에 보는 리뷰(좋아요/아쉬워요·분석 진행)
 //   3. 사람들이 말하는 포인트(항목별)     4. 자주 나오는 아쉬운 점 TOP 3(근거 인용)
 //   5. 최근 두 달 변화                    6. 별점 분포 · 월별 흐름
-//   7. 리뷰 원문                          8. 하단 고정 바(AI 질문 — 준비 중)
+//   7. 리뷰 원문(의미 검색 포함)          8. 하단 고정 바(AI에게 리뷰 물어보기)
 // 모든 수치는 서버 SQL 집계값이며 화면에서 새로 계산하지 않습니다.
 // =====================================================================
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { api, type ProductDetail, type ProductInsights } from "../api";
+import AskPanel from "../components/AskPanel";
 import { AnalysisBadge } from "../components/ProductCard";
 import ReviewList from "../components/ReviewList";
 import { categoryName, dateLabel, labelName, monthLabel, percent } from "../lib/format";
@@ -331,15 +332,8 @@ export default function ProductPage() {
         {insights.data.analysis.prompt_version ?? "–"} · 데이터 {insights.data.data_version}
       </p>
 
-      {/* === [8. 하단 고정 바] 구매 버튼 대신 AI 질문(근거 인용형 Agent는 다음 단계에서 연결) === */}
-      <div className="dock">
-        <div className="dock-inner">
-          <p>이 상품 리뷰에 대해 궁금한 점을 AI에게 물어볼 수 있게 준비 중이에요. 답변에는 실제 리뷰가 인용됩니다.</p>
-          <button className="ask" disabled>
-            AI에게 리뷰 물어보기 · 준비 중
-          </button>
-        </div>
-      </div>
+      {/* === [8. 하단 고정 바] 구매 버튼 대신 AI 질문(근거 인용형 Agent) === */}
+      <AskPanel productId={productId} />
     </main>
   );
 }
