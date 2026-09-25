@@ -159,3 +159,12 @@
 - [x] 평가 표본(70·140건)은 최초 14개 상품으로 고정
 - [x] 자동 실행 `scripts/run_expansion_pipeline.ps1`: 임베딩 → 단계별 표본 분류(20→…→100) → FAQ 생성
 - [ ] 자동 실행 완료(예상 9/27 오후)
+
+## MCP 서버
+
+- [x] 공식 Python SDK `mcp` 2.2.0(버전 고정)으로 stdio MCP 서버 `backend/app/mcp_server.py`
+- [x] 읽기 전용 도구 5개(상품 목록·리포트·두 달 비교·의미 검색·FAQ), 검색은 상품·월 필수
+- [x] 입력 오류·없는 상품·임베딩 오류를 도구 오류로 전달, 테스트 3개
+- [x] 실제 stdio 클라이언트 연결로 개발 데이터 조회 확인(한국어 질의 → 영어 리뷰 검색)
+- [ ] (선택) LangGraph 챗봇이 MCP를 통해 도구를 호출하도록 전환
+- [x] 자동 실행 단계별 Windows 알림(`scripts/notify_pipeline.ps1`)

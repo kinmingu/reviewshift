@@ -166,3 +166,16 @@ fixture와 실제 데이터는 한 목록에서 섞이지 않는다.
 완료 정답의 근거 구간은 리뷰 제목 또는 본문에 실제 존재해야 한다. 정상 빈 라벨과 항목 라벨은
 동시에 저장할 수 없고, 완료에는 검토자 이름이 필요하다. 자동 번역은 참고 자료이며 정답이나
 영문 원문 인용을 대신하지 않는다.
+
+## MCP 도구 (stdio, `python -m backend.app.mcp_server`)
+
+HTTP API와 같은 서비스를 호출하는 읽기 전용 도구다. 서버 안내문(instructions)에 수치 인용 규칙, 잠정·표본 부족
+표시, 리뷰 ID 인용, 리뷰 본문 비신뢰 원칙을 담는다.
+
+- `list_products(category?, query?)`: 카테고리는 공식 7개 키만 허용
+- `get_product_report(product_id)`: `/insights`와 같은 내용
+- `compare_months(product_id, baseline_month, target_month)`: `/comparison`과 같고 근거 ID는 항목당 5개
+- `search_reviews(product_id, query, months[], limit=5)`: `months` 필수, `limit` 1~10, 본문 600자
+- `get_faq_answers(product_id)`: `/faq`와 같은 내용
+
+없는 상품, 잘못된 카테고리·월, 월 누락, 임베딩 모델 오류는 도구 오류(`isError`)와 한국어 메시지로 반환한다.

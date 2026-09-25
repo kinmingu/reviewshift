@@ -260,5 +260,30 @@ foreach ($item in @(
 
 ```powershell
 # 임베딩 → 표본 분류(모든 상품 20건→30→50→70→100) → FAQ 생성. 중단 후 다시 실행하면 이어서 처리
-powershell -ExecutionPolicy Bypass -File scriptsun_expansion_pipeline.ps1
+powershell -ExecutionPolicy Bypass -File scripts
+un_expansion_pipeline.ps1
 ```
+
+## MCP 서버 (다른 AI 클라이언트에서 리뷰 데이터 사용)
+
+`backend/app/mcp_server.py`는 ReviewShift 분석 결과를 MCP 도구로 공개하는 stdio 서버다(공식 Python SDK
+`mcp` 2.2.0). 도구는 모두 읽기 전용이며 수치는 서버의 SQL 집계값이다.
+
+| 도구 | 내용 |
+|---|---|
+| `list_products` | 카테고리·검색어로 상품 목록과 분석 요약 |
+| `get_product_report` | 별점 분포, 좋아요/아쉬워요, 항목별 평가, 아쉬운 점 TOP 3, 월별 흐름, 최근 두 달 변화 |
+| `compare_months` | 두 달 항목별 비율 변화와 증가 신호 |
+| `search_reviews` | 상품·월 필수 의미 검색(한국어 질문 가능) |
+| `get_faq_answers` | 미리 생성·검증한 AI 요약과 FAQ 답변 |
+
+```powershell
+# 직접 실행(표준 입출력으로 MCP 클라이언트와 통신)
+.\.venv\Scripts\python.exe -m backend.app.mcp_server
+
+# Claude Code에 등록(프로젝트 경로는 실제 위치로)
+claude mcp add reviewshift -- C:\workspacesg_f_prj\.venv\Scripts\python.exe -m backend.app.mcp_server
+```
+
+등록 후 "reviewshift로 장난감 카테고리에서 아쉬운 점이 많은 상품 알려줘"처럼 요청하면 클라이언트가 위 도구를
+호출한다. DB(Docker)와 검색용 Ollama `bge-m3`가 켜져 있어야 한다.
