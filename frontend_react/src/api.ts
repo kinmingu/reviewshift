@@ -19,6 +19,7 @@ export interface ProductSummary {
   available_months: string[];
   source_mode: "fixture" | "real";
   analyzed_review_count: number;
+  analysis_sample_size: number | null;
   positive_review_share: number | null;
   negative_review_share: number | null;
 }
@@ -96,6 +97,8 @@ export interface ProductInsights {
     analysis_version: string;
     model: string | null;
     prompt_version: string | null;
+    sample_size: number | null;
+    stored_reviews: number;
   };
   positive_review_share: number | null;
   negative_review_share: number | null;
@@ -112,7 +115,12 @@ export interface ProductInsights {
   latest_change: {
     baseline_month: string;
     target_month: string;
-    signal_status: "insufficient_data" | "analysis_incomplete" | "increase_signal" | "no_increase_signal";
+    signal_status:
+      | "insufficient_data"
+      | "insufficient_sample"
+      | "analysis_incomplete"
+      | "increase_signal"
+      | "no_increase_signal";
     is_provisional: boolean;
     top_negative_changes: ComparisonIssue[];
   } | null;
@@ -140,6 +148,7 @@ export interface Review {
   reviewed_at: string;
   labels: ReviewLabel[];
   analysis_status: "not_started" | "pending" | "running" | "succeeded" | "failed";
+  in_analysis_sample: boolean | null;
 }
 
 // === [호출 함수] ===

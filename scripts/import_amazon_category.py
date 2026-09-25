@@ -30,6 +30,8 @@ from scripts.profile_amazon_category import shift_month
 DEFAULT_INPUT = Path("data/raw/amazon_reviews_2023")
 DEFAULT_SELECTION = Path("config/amazon_category_selection.json")
 DEFAULT_REPORT = Path("data/processed")
+# 카테고리별 제품 수. 제품마다 AI 분석 표본 수(analysis_sample_size)만 다르게 둡니다.
+PRODUCTS_PER_CATEGORY = 5
 REVIEW_COLUMNS = [
     "rating",
     "title",
@@ -76,11 +78,11 @@ def load_selection(path: Path, category: str) -> dict[str, dict[str, Any]]:
     if category_payload is None:
         raise ValueError(f"선정 파일에 {category} 항목이 없습니다.")
     products = category_payload.get("products", [])
-    if len(products) != 2:
-        raise ValueError(f"{category}에는 정확히 제품 2개가 필요합니다.")
+    if len(products) != PRODUCTS_PER_CATEGORY:
+        raise ValueError(f"{category}에는 정확히 제품 {PRODUCTS_PER_CATEGORY}개가 필요합니다.")
 
     selected = {str(item["parent_asin"]): item for item in products}
-    if len(selected) != 2:
+    if len(selected) != PRODUCTS_PER_CATEGORY:
         raise ValueError("parent_asin은 서로 달라야 합니다.")
     for parent_asin, item in selected.items():
         months = item.get("months", [])
@@ -88,6 +90,9 @@ def load_selection(path: Path, category: str) -> dict[str, dict[str, Any]]:
             months[index] != shift_month(months[0], index) for index in range(3)
         ):
             raise ValueError(f"{parent_asin}: 정확히 연속된 3개월이 필요합니다.")
+        sample_size = item.get("analysis_sample_size")
+        if sample_size is not None and (not isinstance(sample_size, int) or sample_size < 1):
+            raise ValueError(f"{parent_asin}: analysis_sample_size는 1 이상의 정수여야 합니다.")
     return selected
 
 
@@ -235,6 +240,8 @@ def upsert_data(
                 "review_revision": source.reviews.revision,
                 "metadata_revision": source.metadata.revision,
                 "analysis_months": selection["months"],
+                # AI 분석 표본 수(없으면 전체). 결과를 보기 전에 선정 파일에서 정합니다.
+                "analysis_sample_size": selection.get("analysis_sample_size"),
                 # 기본 비교는 인접한 마지막 두 달입니다(첫 달↔마지막 달은 가운데 달을 건너뜀).
                 "baseline_month": selection["months"][-2],
                 "target_month": selection["months"][-1],

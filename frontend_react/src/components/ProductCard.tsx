@@ -17,7 +17,10 @@ export default function ProductCard({ product }: { product: ProductSummary }) {
   return (
     <Link to={`/products/${product.id}`} className="card">
       <div className="card-media">
-        <AnalysisBadge analyzed={product.analyzed_review_count} total={product.review_count} />
+        <AnalysisBadge
+          analyzed={product.analyzed_review_count}
+          total={product.analysis_sample_size ?? product.review_count}
+        />
         {product.image_url ? (
           <img src={product.image_url} alt="" loading="lazy" />
         ) : (
@@ -38,6 +41,12 @@ export default function ProductCard({ product }: { product: ProductSummary }) {
             </>
           )}
           <span>리뷰 {product.review_count.toLocaleString()}건</span>
+          {product.analysis_sample_size !== null && (
+            <>
+              <span className="dot">|</span>
+              <span>AI 표본 {product.analysis_sample_size}건</span>
+            </>
+          )}
         </div>
         <SentimentBar
           positive={product.positive_review_share}

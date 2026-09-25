@@ -10,6 +10,16 @@ from sqlalchemy.orm import Session
 from backend.app.core.categories import REAL_CATEGORY_KEYS
 from backend.app.models import Product, Review
 
+# 70건 시험·140건 사람 평가 표본을 만든 최초 14개 상품(카테고리별 2개)
+ORIGINAL_EVALUATION_PRODUCTS = frozenset(
+    {
+        "amazon-B08VD2NX25", "amazon-B09M8N7YML", "amazon-B08YGYBQTZ", "amazon-B000FS05VG",
+        "amazon-B07NZJ1MHX", "amazon-B08DQGH9T1", "amazon-B0CFTCTHTK", "amazon-B0BWLH7QX5",
+        "amazon-B07FC9NRRR", "amazon-B0764PP6R8", "amazon-B087H2LWWZ", "amazon-B00HT5HBMO",
+        "amazon-B01EX2IAZM", "amazon-B0B7LC848X",
+    }
+)
+
 
 @dataclass(frozen=True)
 class SampledReview:
@@ -31,8 +41,13 @@ def select_analysis_sample(
     per_product: int,
     seed: str,
     exclude_review_ids: set[str] | None = None,
+    product_ids: set[str] | None = None,
 ) -> list[SampledReview]:
-    """14개 상품에서 별점과 월을 분산시킨 재현 가능한 표본을 선택합니다."""
+    """상품별로 별점과 월을 분산시킨 재현 가능한 평가용 표본을 선택합니다.
+
+    product_ids를 주면 그 상품만 대상으로 합니다. 70건 시험·140건 평가 표본은 최초 14개 상품
+    (ORIGINAL_EVALUATION_PRODUCTS) 기준으로 고정되어 있습니다.
+    """
     excluded = exclude_review_ids or set()
     products = list(
         session.scalars(
@@ -40,6 +55,7 @@ def select_analysis_sample(
             .where(
                 Product.source_mode == "real",
                 Product.category.in_(REAL_CATEGORY_KEYS),
+                *([Product.id.in_(sorted(product_ids))] if product_ids is not None else []),
             )
             .order_by(Product.category, Product.id)
         )

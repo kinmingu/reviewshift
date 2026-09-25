@@ -8,6 +8,7 @@ from typing import Any
 
 from backend.app.core.database import SessionLocal
 from backend.app.services.analysis_sampling import (
+    ORIGINAL_EVALUATION_PRODUCTS,
     SampledReview,
     sample_summary,
     select_analysis_sample,
@@ -54,8 +55,10 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     with SessionLocal() as session:
+        # 평가 표본은 최초 14개 상품 기준으로 고정합니다(상품을 늘려도 과거 표본이 바뀌지 않게).
+        scope = set(ORIGINAL_EVALUATION_PRODUCTS)
         trial = select_analysis_sample(
-            session, per_product=5, seed=TRIAL_SEED
+            session, per_product=5, seed=TRIAL_SEED, product_ids=scope
         )
         trial_ids = {item.review.id for item in trial}
         evaluation = select_analysis_sample(
@@ -63,6 +66,7 @@ def main() -> None:
             per_product=10,
             seed=EVALUATION_SEED,
             exclude_review_ids=trial_ids,
+            product_ids=scope,
         )
 
         # 어려운 사례는 무작위 평가 140건과 분리해 별도의 정성 점검용으로 제공합니다.
@@ -73,6 +77,7 @@ def main() -> None:
                 per_product=5,
                 seed="reviewshift-absa-hard-cases-v1",
                 exclude_review_ids=trial_ids | {x.review.id for x in evaluation},
+                product_ids=scope,
             )
             if HARD_PATTERN.search(f"{item.review.title or ''} {item.review.text}")
         ]

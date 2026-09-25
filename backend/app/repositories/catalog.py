@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -15,6 +16,11 @@ from backend.app.models import (
     ReviewEmbedding,
     ReviewLabel,
 )
+
+
+def _scope(review_ids: Collection[str] | None) -> list:
+    """AI 분석 표본이 정해진 상품은 표본 리뷰만 집계합니다(None이면 전체)."""
+    return [] if review_ids is None else [Review.id.in_(list(review_ids))]
 
 
 @dataclass(frozen=True)
@@ -132,7 +138,13 @@ class ReviewRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def count_eligible(self, product_id: str, start: datetime, end: datetime) -> int:
+    def count_eligible(
+        self,
+        product_id: str,
+        start: datetime,
+        end: datetime,
+        review_ids: Collection[str] | None = None,
+    ) -> int:
         return int(
             self.session.scalar(
                 select(func.count(Review.id)).where(
@@ -140,6 +152,7 @@ class ReviewRepository:
                     Review.eligible.is_(True),
                     Review.reviewed_at >= start,
                     Review.reviewed_at < end,
+                    *_scope(review_ids),
                 )
             )
             or 0
@@ -159,7 +172,12 @@ class ReviewRepository:
         return float(value) if value is not None else None
 
     def count_labeled(
-        self, product_id: str, start: datetime, end: datetime, run_id: str
+        self,
+        product_id: str,
+        start: datetime,
+        end: datetime,
+        run_id: str,
+        review_ids: Collection[str] | None = None,
     ) -> int:
         return int(
             self.session.scalar(
@@ -171,6 +189,7 @@ class ReviewRepository:
                     Review.reviewed_at >= start,
                     Review.reviewed_at < end,
                     ReviewLabel.run_id == run_id,
+                    *_scope(review_ids),
                 )
             )
             or 0
@@ -182,8 +201,10 @@ class ReviewRepository:
         start: datetime,
         end: datetime,
         run_id: str,
+        review_ids: Collection[str] | None = None,
     ) -> AnalysisCoverageAggregate:
-        total = self.count_eligible(product_id, start, end)
+        # 표본이 있으면 "대상" 수도 표본 수입니다(표본 밖 리뷰는 미처리로 세지 않음).
+        total = self.count_eligible(product_id, start, end, review_ids)
         status_rows = dict(
             self.session.execute(
                 select(ReviewAnalysisResult.status, func.count(ReviewAnalysisResult.id))
@@ -194,6 +215,7 @@ class ReviewRepository:
                     Review.reviewed_at >= start,
                     Review.reviewed_at < end,
                     ReviewAnalysisResult.run_id == run_id,
+                    *_scope(review_ids),
                 )
                 .group_by(ReviewAnalysisResult.status)
             ).all()
@@ -204,11 +226,16 @@ class ReviewRepository:
             failed=int(status_rows.get("failed", 0)),
             in_progress=int(status_rows.get("pending", 0))
             + int(status_rows.get("running", 0)),
-            labeled=self.count_labeled(product_id, start, end, run_id),
+            labeled=self.count_labeled(product_id, start, end, run_id, review_ids),
         )
 
     def label_aggregates(
-        self, product_id: str, start: datetime, end: datetime, run_id: str
+        self,
+        product_id: str,
+        start: datetime,
+        end: datetime,
+        run_id: str,
+        review_ids: Collection[str] | None = None,
     ) -> list[LabelAggregate]:
         rows = self.session.execute(
             select(
@@ -231,6 +258,7 @@ class ReviewRepository:
                 Review.reviewed_at < end,
                 ReviewLabel.run_id == run_id,
                 ReviewAnalysisResult.status == "succeeded",
+                *_scope(review_ids),
             )
             .group_by(
                 ReviewLabel.aspect, ReviewLabel.detail_label, ReviewLabel.polarity
@@ -327,7 +355,9 @@ class ProductInsightRepository:
         counts.update({int(rating): int(count) for rating, count in rows})
         return counts
 
-    def _succeeded_reviews(self, product_id: str, run_id: str):
+    def _succeeded_reviews(
+        self, product_id: str, run_id: str, review_ids: Collection[str] | None = None
+    ):
         """활성 run에서 분류에 성공한 적격 리뷰 조건(비율의 분모)입니다."""
         return (
             select(Review.id)
@@ -337,16 +367,21 @@ class ProductInsightRepository:
                 Review.eligible.is_(True),
                 ReviewAnalysisResult.run_id == run_id,
                 ReviewAnalysisResult.status == "succeeded",
+                *_scope(review_ids),
             )
         )
 
-    def succeeded_count(self, product_id: str, run_id: str) -> int:
-        succeeded = self._succeeded_reviews(product_id, run_id).subquery()
+    def succeeded_count(
+        self, product_id: str, run_id: str, review_ids: Collection[str] | None = None
+    ) -> int:
+        succeeded = self._succeeded_reviews(product_id, run_id, review_ids).subquery()
         return int(self.session.scalar(select(func.count()).select_from(succeeded)) or 0)
 
-    def polarity_review_counts(self, product_id: str, run_id: str) -> dict[str, int]:
+    def polarity_review_counts(
+        self, product_id: str, run_id: str, review_ids: Collection[str] | None = None
+    ) -> dict[str, int]:
         """극성별로 해당 라벨이 하나 이상 있는 고유 리뷰 수입니다."""
-        succeeded = self._succeeded_reviews(product_id, run_id).subquery()
+        succeeded = self._succeeded_reviews(product_id, run_id, review_ids).subquery()
         rows = self.session.execute(
             select(ReviewLabel.polarity, func.count(distinct(ReviewLabel.review_id)))
             .where(
@@ -357,8 +392,10 @@ class ProductInsightRepository:
         ).all()
         return {str(polarity): int(count) for polarity, count in rows}
 
-    def label_counts(self, product_id: str, run_id: str) -> list[tuple[str, str, str, int]]:
-        succeeded = self._succeeded_reviews(product_id, run_id).subquery()
+    def label_counts(
+        self, product_id: str, run_id: str, review_ids: Collection[str] | None = None
+    ) -> list[tuple[str, str, str, int]]:
+        succeeded = self._succeeded_reviews(product_id, run_id, review_ids).subquery()
         rows = self.session.execute(
             select(
                 ReviewLabel.aspect,
@@ -374,9 +411,11 @@ class ProductInsightRepository:
         ).all()
         return [(str(a), str(d), str(p), int(c)) for a, d, p, c in rows]
 
-    def mention_counts(self, product_id: str, run_id: str) -> dict[tuple[str, str], int]:
+    def mention_counts(
+        self, product_id: str, run_id: str, review_ids: Collection[str] | None = None
+    ) -> dict[tuple[str, str], int]:
         """항목을 한 번이라도 언급한 고유 리뷰 수(극성 무관)입니다."""
-        succeeded = self._succeeded_reviews(product_id, run_id).subquery()
+        succeeded = self._succeeded_reviews(product_id, run_id, review_ids).subquery()
         rows = self.session.execute(
             select(
                 ReviewLabel.aspect,
@@ -399,8 +438,9 @@ class ProductInsightRepository:
         detail_label: str,
         polarity: str,
         limit: int,
+        review_ids: Collection[str] | None = None,
     ) -> list[LabelExample]:
-        succeeded = self._succeeded_reviews(product_id, run_id).subquery()
+        succeeded = self._succeeded_reviews(product_id, run_id, review_ids).subquery()
         rows = self.session.execute(
             select(Review.id, Review.rating, Review.reviewed_at, ReviewLabel.evidence_span)
             .join(ReviewLabel, ReviewLabel.review_id == Review.id)
@@ -425,7 +465,9 @@ class ProductInsightRepository:
                 break
         return examples
 
-    def monthly_analysis(self, product_id: str, run_id: str) -> list[MonthlyAnalysisAggregate]:
+    def monthly_analysis(
+        self, product_id: str, run_id: str, review_ids: Collection[str] | None = None
+    ) -> list[MonthlyAnalysisAggregate]:
         month = func.to_char(
             func.date_trunc("month", func.timezone("UTC", Review.reviewed_at)), "YYYY-MM"
         )
@@ -438,6 +480,7 @@ class ProductInsightRepository:
                     Review.eligible.is_(True),
                     ReviewAnalysisResult.run_id == run_id,
                     ReviewAnalysisResult.status == "succeeded",
+                    *_scope(review_ids),
                 )
                 .group_by(month)
             ).all()
@@ -456,6 +499,7 @@ class ProductInsightRepository:
                 ReviewLabel.run_id == run_id,
                 ReviewAnalysisResult.status == "succeeded",
                 ReviewLabel.polarity.in_(("positive", "negative")),
+                *_scope(review_ids),
             )
             .group_by(month, ReviewLabel.polarity)
         ).all()

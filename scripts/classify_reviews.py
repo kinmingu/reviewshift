@@ -26,6 +26,7 @@ from backend.app.models import (
     ReviewAnalysisResult,
     ReviewLabel,
 )
+from backend.app.services.analysis_sample import processing_order_key
 from backend.app.services.months import month_bounds
 from backend.app.services.review_classification import (
     EVIDENCE_RULE_VERSION,
@@ -121,7 +122,7 @@ def product_month_review_ids(
                 Review.reviewed_at < end,
             )
         ).all()
-        per_month.append(sorted(ids, key=_processing_order_key))
+        per_month.append(sorted(ids, key=processing_order_key))
     selected = [
         review_id
         for group in zip_longest(*per_month)
@@ -133,8 +134,6 @@ def product_month_review_ids(
     return selected
 
 
-def _processing_order_key(review_id: str) -> str:
-    return hashlib.sha256(f"reviewshift-processing-order|{review_id}".encode()).hexdigest()
 
 
 def ensure_run(

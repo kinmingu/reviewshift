@@ -31,6 +31,7 @@ from backend.app.schemas.catalog import (
     ReviewLabelResponse,
     ReviewResponse,
 )
+from backend.app.services.analysis_sample import build_sample_plan
 from backend.app.services.months import month_bounds
 
 
@@ -48,6 +49,7 @@ class CatalogService:
         self.reviews = ReviewRepository(session)
         self.runs = AnalysisRunRepository(session)
         self.insights = ProductInsightRepository(session)
+        self._samples: dict[str, set[str] | None] = {}
 
     def categories(self, source_mode: str) -> list[str]:
         stored = self.products.categories(source_mode)
@@ -113,11 +115,12 @@ class CatalogService:
             product_id, baseline_start, baseline_end
         )
         run = self._active_run(product)
+        sample = self._sample_ids(product)
         target_analysis = self._analysis_coverage(
-            product_id, target_start, target_end, run, target_total
+            product_id, target_start, target_end, run, target_total, sample
         )
         baseline_analysis = self._analysis_coverage(
-            product_id, baseline_start, baseline_end, run, baseline_total
+            product_id, baseline_start, baseline_end, run, baseline_total, sample
         )
         settings = get_settings()
         target_status = self._period_status(
@@ -161,13 +164,13 @@ class CatalogService:
             target = {
                 (item.aspect, item.detail_label, item.polarity): item
                 for item in self.reviews.label_aggregates(
-                    product_id, target_start, target_end, run.id
+                    product_id, target_start, target_end, run.id, sample
                 )
             }
             baseline = {
                 (item.aspect, item.detail_label, item.polarity): item
                 for item in self.reviews.label_aggregates(
-                    product_id, baseline_start, baseline_end, run.id
+                    product_id, baseline_start, baseline_end, run.id, sample
                 )
             }
             for key in target.keys() | baseline.keys():
@@ -238,6 +241,10 @@ class CatalogService:
             signal_status = "insufficient_data"
         elif not complete:
             signal_status = "analysis_incomplete"
+        elif min(target_analysis.succeeded, baseline_analysis.succeeded) < (
+            settings.analysis_min_review_count
+        ):
+            signal_status = "insufficient_sample"
         elif increase_signal:
             signal_status = "increase_signal"
         else:
@@ -306,11 +313,13 @@ class CatalogService:
             page=page,
             page_size=page_size,
         )
+        sample = self._sample_ids(product)
         return [
             self._review_response(
                 review,
                 category=product.category,
                 active_run_id=run.id if run is not None else None,
+                in_sample=(review.id in sample) if sample is not None else None,
             )
             for review in reviews
         ], total, product.source_mode
@@ -334,13 +343,15 @@ class CatalogService:
             else None
         )
 
-        # 상품 전체 기간의 처리 현황(월 비교와 같은 완료 판정 규칙)
+        # 상품 전체 기간의 처리 현황(월 비교와 같은 완료 판정 규칙). 표본이 있으면 표본이 대상입니다.
+        sample = self._sample_ids(product)
         all_time = self._analysis_coverage(
             product_id,
             datetime(1990, 1, 1, tzinfo=UTC),
             datetime(2101, 1, 1, tzinfo=UTC),
             run,
-            review_count,
+            len(sample) if sample is not None else review_count,
+            sample,
         )
         succeeded = all_time.succeeded
         analysis = AnalysisOverview(
@@ -355,6 +366,8 @@ class CatalogService:
             model=run.model if run is not None else None,
             prompt_version=run.prompt_version if run is not None else None,
             label_schema_version=run.label_schema_version if run is not None else None,
+            sample_size=len(sample) if sample is not None else None,
+            stored_reviews=review_count,
         )
 
         def rate(count: int) -> float | None:
@@ -365,16 +378,16 @@ class CatalogService:
         positive_share = negative_share = None
         monthly_analysis = {}
         if run is not None and succeeded:
-            polarity_reviews = self.insights.polarity_review_counts(product_id, run.id)
+            polarity_reviews = self.insights.polarity_review_counts(product_id, run.id, sample)
             positive_share = rate(polarity_reviews.get("positive", 0))
             negative_share = rate(polarity_reviews.get("negative", 0))
 
             counts: dict[tuple[str, str], dict[str, int]] = {}
             for aspect, detail, polarity, count in self.insights.label_counts(
-                product_id, run.id
+                product_id, run.id, sample
             ):
                 counts.setdefault((aspect, detail), {})[polarity] = count
-            mentions = self.insights.mention_counts(product_id, run.id)
+            mentions = self.insights.mention_counts(product_id, run.id, sample)
             for (aspect, detail), by_polarity in counts.items():
                 names = taxonomy.get((aspect, detail), {})
                 aspects.append(
@@ -422,12 +435,14 @@ class CatalogService:
                                 item.detail_label,
                                 "negative",
                                 limit=3,
+                                review_ids=sample,
                             )
                         ],
                     )
                 )
             monthly_analysis = {
-                item.month: item for item in self.insights.monthly_analysis(product_id, run.id)
+                item.month: item
+                for item in self.insights.monthly_analysis(product_id, run.id, sample)
             }
 
         monthly = []
@@ -508,10 +523,11 @@ class CatalogService:
         run = self._active_run(product)
         if run is None:
             return 0, None, None
-        analyzed = self.insights.succeeded_count(product.id, run.id)
+        sample = self._sample_ids(product)
+        analyzed = self.insights.succeeded_count(product.id, run.id, sample)
         if not analyzed:
             return 0, None, None
-        polarity_reviews = self.insights.polarity_review_counts(product.id, run.id)
+        polarity_reviews = self.insights.polarity_review_counts(product.id, run.id, sample)
         return (
             analyzed,
             polarity_reviews.get("positive", 0) / analyzed,
@@ -522,6 +538,9 @@ class CatalogService:
         analyzed, positive_share, negative_share = self._card_analysis(product)
         return ProductSummary(
             analyzed_review_count=analyzed,
+            analysis_sample_size=(
+                len(sample) if (sample := self._sample_ids(product)) is not None else None
+            ),
             positive_review_share=positive_share,
             negative_review_share=negative_share,
             id=product.id,
@@ -594,6 +613,13 @@ class CatalogService:
             return "in_progress"
         return "not_started"
 
+    # === [AI 분석 표본] 상품별 표본 리뷰 ID(없으면 None = 저장 리뷰 전체가 대상) ===
+    def _sample_ids(self, product: Product) -> set[str] | None:
+        if product.id not in self._samples:
+            plan = build_sample_plan(self.products.session, product)
+            self._samples[product.id] = plan.members if plan is not None else None
+        return self._samples[product.id]
+
     def _analysis_coverage(
         self,
         product_id: str,
@@ -601,14 +627,21 @@ class CatalogService:
         end: datetime,
         run: AnalysisRun | None,
         total: int,
+        sample: set[str] | None = None,
     ) -> AnalysisCoverageAggregate:
         if run is None:
+            if sample is not None:
+                total = self.reviews.count_eligible(product_id, start, end, sample)
             return AnalysisCoverageAggregate(total, 0, 0, 0, 0)
-        return self.reviews.analysis_coverage(product_id, start, end, run.id)
+        return self.reviews.analysis_coverage(product_id, start, end, run.id, sample)
 
     @staticmethod
     def _review_response(
-        review: Review, *, category: str, active_run_id: str | None
+        review: Review,
+        *,
+        category: str,
+        active_run_id: str | None,
+        in_sample: bool | None = None,
     ) -> ReviewResponse:
         taxonomy = category_labels(category)
         active_result = next(
@@ -657,6 +690,7 @@ class CatalogService:
             rating=review.rating,
             reviewed_at=review.reviewed_at,
             labels=labels,
+            in_analysis_sample=in_sample,
             analysis_status=(active_result.status if active_result else "not_started"),
             source_mode=review.source_mode,
         )

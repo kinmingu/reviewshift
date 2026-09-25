@@ -67,7 +67,13 @@ function ReviewItem({ review }: { review: Review }) {
       </div>
       {showKorean && <p className="sentiment-empty">자동 번역입니다. 정확한 근거는 영어 원문 기준이에요.</p>}
       <div className="tags">
-        {review.labels.length === 0 && <span className="tag">{STATUS_TEXT[review.analysis_status]}</span>}
+        {review.labels.length === 0 && (
+          <span className="tag">
+            {review.in_analysis_sample === false && review.analysis_status === "not_started"
+              ? "AI 분석 표본 외"
+              : STATUS_TEXT[review.analysis_status]}
+          </span>
+        )}
         {review.labels.map((label, index) => (
           <span key={index} className={`tag ${label.polarity}`}>
             {labelName(label)} · {POLARITY_LABEL[label.polarity]}

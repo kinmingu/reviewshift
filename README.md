@@ -9,8 +9,8 @@
 - FastAPI 상품 검색·카테고리·상세·리뷰·기간 비교 API
 - PostgreSQL 17 + pgvector 0.8.6, SQLAlchemy, Alembic
 - Streamlit 상품 목록·상세·월별 리뷰 수·평균 별점·리뷰 원문 화면
-- 합성 fixture 3개와 별도로 관리되는 실제 Amazon 상품 17개
-- 공식 7개 카테고리에서 각각 2개씩 총 14개, 정확 중복 제거 리뷰 5,224건
+- 합성 fixture 3개와 별도로 관리되는 실제 Amazon 상품(공식 7개 카테고리 × 5개 = 35개 + 기존 Appliances 3개)
+- 35개 상품의 연속 3개월 리뷰 13,047건(정확 중복 제거). AI 분석은 상품마다 20/30/50/70/100건 표본
 - 기존 Appliances 검증 상품 3개와 리뷰 7,801건은 보존하되 기본 14개 목록에서는 분리
 - 14개 상품의 한국어 표시명·요약 설명과 제품별 리뷰 수·원천 평균 평점 표시
 - 영어 원문 상품명·설명·리뷰는 보존하고 화면에서 원문임을 명시
@@ -250,4 +250,15 @@ foreach ($item in @(
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.classify_reviews `
   --model qwen3.5:latest --run-id amazon-absa-qwen35-v3 --all --activate
+```
+
+## 35개 상품 AI 분석 표본 자동 실행
+
+카테고리마다 5개 상품에 AI 분석 표본 20/30/50/70/100건을 배정했다(`config/amazon_category_selection.json`의
+`analysis_sample_size`). 표본은 각 달의 리뷰 수에 비례해 나누고 달 안에서 SHA-256 순서로 고른다. 별점 분포·원문·
+리뷰 검색은 저장 리뷰 전체, 좋아요/아쉬워요·항목·변화는 표본 기준이다.
+
+```powershell
+# 임베딩 → 표본 분류(모든 상품 20건→30→50→70→100) → FAQ 생성. 중단 후 다시 실행하면 이어서 처리
+powershell -ExecutionPolicy Bypass -File scriptsun_expansion_pipeline.ps1
 ```

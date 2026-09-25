@@ -8,12 +8,17 @@
           "title_ko_source": "manual",
           "description_ko": "다중 노이즈 캔슬링 모드, 앱 사용자 설정 이퀄라이저, 최대 40시간 재생과 멀티포인트 연결을 지원하는 블루투스 헤드폰입니다.",
           "product_type": "헤드폰",
-          "months": ["2022-02", "2022-03", "2022-04"],
+          "months": [
+            "2022-02",
+            "2022-03",
+            "2022-04"
+          ],
           "monthly_counts": {
             "2022-02": 123,
             "2022-03": 126,
             "2022-04": 124
-          }
+          },
+          "analysis_sample_size": 100
         },
         {
           "parent_asin": "B09M8N7YML",
@@ -21,12 +26,71 @@
           "title_ko_source": "manual",
           "description_ko": "1080p 영상, 컬러 야간 촬영, 양방향 음성과 Wi-Fi 직접 연결을 지원하는 무선 보안 카메라 3개 세트입니다.",
           "product_type": "보안 카메라",
-          "months": ["2022-07", "2022-08", "2022-09"],
+          "months": [
+            "2022-07",
+            "2022-08",
+            "2022-09"
+          ],
           "monthly_counts": {
             "2022-07": 135,
             "2022-08": 131,
             "2022-09": 107
-          }
+          },
+          "analysis_sample_size": 70
+        },
+        {
+          "parent_asin": "B09F7TGV1H",
+          "title_ko": "킨들 페이퍼화이트 16GB 전자책 단말기",
+          "title_ko_source": "claude-draft",
+          "description_ko": "6.8인치 화면과 밝기·색온도 조절 조명을 갖춘 아마존 전자책 단말기입니다.",
+          "product_type": "전자책 단말기",
+          "months": [
+            "2022-03",
+            "2022-04",
+            "2022-05"
+          ],
+          "monthly_counts": {
+            "2022-03": 135,
+            "2022-04": 132,
+            "2022-05": 108
+          },
+          "analysis_sample_size": 50
+        },
+        {
+          "parent_asin": "B09G3MBH6V",
+          "title_ko": "넷기어 나이트호크 R6700 AC1750 와이파이 공유기",
+          "title_ko_source": "claude-draft",
+          "description_ko": "최대 1750Mbps 듀얼밴드 무선 속도를 지원하는 가정용 와이파이 공유기입니다.",
+          "product_type": "와이파이 공유기",
+          "months": [
+            "2022-01",
+            "2022-02",
+            "2022-03"
+          ],
+          "monthly_counts": {
+            "2022-01": 133,
+            "2022-02": 112,
+            "2022-03": 130
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B00BIFNTMC",
+          "title_ko": "앤커 2.4G 무선 버티컬 인체공학 마우스",
+          "title_ko_source": "claude-draft",
+          "description_ko": "손을 세워 쥐는 수직형 무선 마우스로 800/1200/1600 DPI와 버튼 5개를 지원합니다.",
+          "product_type": "무선 마우스",
+          "months": [
+            "2018-02",
+            "2018-03",
+            "2018-04"
+          ],
+          "monthly_counts": {
+            "2018-02": 122,
+            "2018-03": 133,
+            "2018-04": 120
+          },
+          "analysis_sample_size": 20
         }
       ]
     },
@@ -38,12 +102,17 @@
           "title_ko_source": "manual",
           "description_ko": "정밀 트리머가 포함된 6중날 면도기 손잡이 1개와 교체용 카트리지 10개 구성입니다.",
           "product_type": "면도기",
-          "months": ["2015-01", "2015-02", "2015-03"],
+          "months": [
+            "2015-01",
+            "2015-02",
+            "2015-03"
+          ],
           "monthly_counts": {
             "2015-01": 120,
             "2015-02": 127,
             "2015-03": 125
-          }
+          },
+          "analysis_sample_size": 70
         },
         {
           "parent_asin": "B000FS05VG",
@@ -51,12 +120,71 @@
           "title_ko_source": "manual",
           "description_ko": "3중 세라믹 열 분배와 이온 기술, 2단계 온도·풍속 설정을 제공하는 경량 헤어드라이어입니다.",
           "product_type": "헤어드라이어",
-          "months": ["2015-06", "2015-07", "2015-08"],
+          "months": [
+            "2015-06",
+            "2015-07",
+            "2015-08"
+          ],
           "monthly_counts": {
             "2015-06": 123,
             "2015-07": 131,
             "2015-08": 121
-          }
+          },
+          "analysis_sample_size": 100
+        },
+        {
+          "parent_asin": "B08DTYQLTH",
+          "title_ko": "에어시 휴대용 전동 네일 드릴 세트",
+          "title_ko_source": "claude-draft",
+          "description_ko": "아크릴·젤 네일 손질용 휴대용 전동 네일 드릴 세트입니다.",
+          "product_type": "전동 네일 드릴",
+          "months": [
+            "2020-02",
+            "2020-03",
+            "2020-04"
+          ],
+          "monthly_counts": {
+            "2020-02": 127,
+            "2020-03": 119,
+            "2020-04": 129
+          },
+          "analysis_sample_size": 50
+        },
+        {
+          "parent_asin": "B00NR1YQHM",
+          "title_ko": "뉴트로지나 하이드로 부스트 히알루론산 워터 젤 수분크림",
+          "title_ko_source": "claude-draft",
+          "description_ko": "히알루론산이 들어간 가벼운 젤 타입 데일리 수분크림입니다.",
+          "product_type": "수분크림",
+          "months": [
+            "2020-12",
+            "2021-01",
+            "2021-02"
+          ],
+          "monthly_counts": {
+            "2020-12": 121,
+            "2021-01": 119,
+            "2021-02": 136
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B0BJLPRXZ6",
+          "title_ko": "닉스 프로페셔널 메이크업 버터 글로스",
+          "title_ko_source": "claude-draft",
+          "description_ko": "끈적임이 적은 버터 질감의 립글로스입니다.",
+          "product_type": "립글로스",
+          "months": [
+            "2022-11",
+            "2022-12",
+            "2023-01"
+          ],
+          "monthly_counts": {
+            "2022-11": 119,
+            "2022-12": 112,
+            "2023-01": 144
+          },
+          "analysis_sample_size": 20
         }
       ]
     },
@@ -68,12 +196,17 @@
           "title_ko_source": "manual",
           "description_ko": "삼성 갤럭시 스마트폰용 USB-C 고속 충전 어댑터와 2m 케이블 2개 세트입니다.",
           "product_type": "휴대폰 충전기",
-          "months": ["2020-10", "2020-11", "2020-12"],
+          "months": [
+            "2020-10",
+            "2020-11",
+            "2020-12"
+          ],
           "monthly_counts": {
             "2020-10": 120,
             "2020-11": 116,
             "2020-12": 137
-          }
+          },
+          "analysis_sample_size": 100
         },
         {
           "parent_asin": "B08DQGH9T1",
@@ -81,12 +214,71 @@
           "title_ko_source": "manual",
           "description_ko": "자동 정렬 설치 도구가 포함된 아이폰 12 프로 맥스용 9H 강화유리 보호필름 2개 세트입니다.",
           "product_type": "화면 보호필름",
-          "months": ["2021-06", "2021-07", "2021-08"],
+          "months": [
+            "2021-06",
+            "2021-07",
+            "2021-08"
+          ],
           "monthly_counts": {
             "2021-06": 127,
             "2021-07": 131,
             "2021-08": 113
-          }
+          },
+          "analysis_sample_size": 70
+        },
+        {
+          "parent_asin": "B0BL6CB6XJ",
+          "title_ko": "오터박스 아이폰 SE 2·3세대/8/7 케이스",
+          "title_ko_source": "claude-draft",
+          "description_ko": "아이폰 SE(2·3세대), 8, 7에 맞는 오터박스 보호 케이스입니다.",
+          "product_type": "휴대폰 케이스",
+          "months": [
+            "2018-09",
+            "2018-10",
+            "2018-11"
+          ],
+          "monthly_counts": {
+            "2018-09": 135,
+            "2018-10": 124,
+            "2018-11": 116
+          },
+          "analysis_sample_size": 50
+        },
+        {
+          "parent_asin": "B09NQW2BBC",
+          "title_ko": "미아디 10000mAh 보조배터리 2개 세트",
+          "title_ko_source": "claude-draft",
+          "description_ko": "USB-C 고속 충전과 듀얼 USB 출력을 지원하는 10000mAh 보조배터리 2개 세트입니다.",
+          "product_type": "보조배터리",
+          "months": [
+            "2022-11",
+            "2022-12",
+            "2023-01"
+          ],
+          "monthly_counts": {
+            "2022-11": 121,
+            "2022-12": 140,
+            "2023-01": 114
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B08J8DVRWP",
+          "title_ko": "밴스키 3-in-1 차량용 휴대폰 거치대",
+          "title_ko_source": "claude-draft",
+          "description_ko": "송풍구·대시보드 등에 설치하는 3-in-1 차량용 휴대폰 거치대입니다.",
+          "product_type": "차량용 거치대",
+          "months": [
+            "2021-04",
+            "2021-05",
+            "2021-06"
+          ],
+          "monthly_counts": {
+            "2021-04": 137,
+            "2021-05": 114,
+            "2021-06": 125
+          },
+          "analysis_sample_size": 20
         }
       ]
     },
@@ -98,12 +290,17 @@
           "title_ko_source": "manual",
           "description_ko": "네 가지 조명 모드를 지원하며 별도 도구 없이 설치할 수 있는 USB 충전식 자전거 전조등·후미등 세트입니다.",
           "product_type": "자전거 조명",
-          "months": ["2020-09", "2020-10", "2020-11"],
+          "months": [
+            "2020-09",
+            "2020-10",
+            "2020-11"
+          ],
           "monthly_counts": {
             "2020-09": 116,
             "2020-10": 132,
             "2020-11": 126
-          }
+          },
+          "analysis_sample_size": 100
         },
         {
           "parent_asin": "B0764PP6R8",
@@ -111,12 +308,71 @@
           "title_ko_source": "manual",
           "description_ko": "운동과 스트레칭에 사용하는 고강도 밸런스 볼로 공기 주입 펌프가 포함됩니다.",
           "product_type": "운동용 밸런스 볼",
-          "months": ["2016-12", "2017-01", "2017-02"],
+          "months": [
+            "2016-12",
+            "2017-01",
+            "2017-02"
+          ],
           "monthly_counts": {
             "2016-12": 101,
             "2017-01": 139,
             "2017-02": 133
-          }
+          },
+          "analysis_sample_size": 70
+        },
+        {
+          "parent_asin": "B09LW2KHPM",
+          "title_ko": "본트 LED 캠핑 랜턴",
+          "title_ko_source": "claude-draft",
+          "description_ko": "캠핑·비상용으로 쓰는 휴대용 LED 랜턴입니다.",
+          "product_type": "캠핑 랜턴",
+          "months": [
+            "2016-06",
+            "2016-07",
+            "2016-08"
+          ],
+          "monthly_counts": {
+            "2016-06": 123,
+            "2016-07": 118,
+            "2016-08": 136
+          },
+          "analysis_sample_size": 50
+        },
+        {
+          "parent_asin": "B00C6OUDX2",
+          "title_ko": "캐스트킹 슈퍼파워 합사 낚싯줄",
+          "title_ko_source": "claude-draft",
+          "description_ko": "마모에 강한 합사(브레이드) 낚싯줄입니다.",
+          "product_type": "낚싯줄",
+          "months": [
+            "2018-04",
+            "2018-05",
+            "2018-06"
+          ],
+          "monthly_counts": {
+            "2018-04": 106,
+            "2018-05": 109,
+            "2018-06": 160
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B09LWFFRRG",
+          "title_ko": "아마존 베이직 고밀도 원형 폼롤러",
+          "title_ko_source": "claude-draft",
+          "description_ko": "운동 후 근육 이완과 마사지에 쓰는 고밀도 폼롤러입니다.",
+          "product_type": "폼롤러",
+          "months": [
+            "2020-03",
+            "2020-04",
+            "2020-05"
+          ],
+          "monthly_counts": {
+            "2020-03": 117,
+            "2020-04": 118,
+            "2020-05": 141
+          },
+          "analysis_sample_size": 20
         }
       ]
     },
@@ -128,12 +384,17 @@
           "title_ko_source": "manual",
           "description_ko": "18개월 이상 유아가 손잡이를 밀고 당겨 회전 속도를 조절하며 균형감과 운동 능력을 익히는 놀이기구입니다.",
           "product_type": "유아 회전 놀이기구",
-          "months": ["2021-12", "2022-01", "2022-02"],
+          "months": [
+            "2021-12",
+            "2022-01",
+            "2022-02"
+          ],
           "monthly_counts": {
             "2021-12": 140,
             "2022-01": 166,
             "2022-02": 67
-          }
+          },
+          "analysis_sample_size": 100
         },
         {
           "parent_asin": "B00HT5HBMO",
@@ -141,12 +402,71 @@
           "title_ko_source": "manual",
           "description_ko": "각 버튼에 최대 7초의 소리를 녹음할 수 있어 수업, 퀴즈와 가족 게임에 사용할 수 있는 버저 4개 세트입니다.",
           "product_type": "교육용 녹음 버저",
-          "months": ["2021-04", "2021-05", "2021-06"],
+          "months": [
+            "2021-04",
+            "2021-05",
+            "2021-06"
+          ],
           "monthly_counts": {
             "2021-04": 132,
             "2021-05": 130,
             "2021-06": 111
-          }
+          },
+          "analysis_sample_size": 70
+        },
+        {
+          "parent_asin": "B00MNG37C2",
+          "title_ko": "시마 X5C 카메라 탑재 RC 쿼드콥터 드론",
+          "title_ko_source": "claude-draft",
+          "description_ko": "2.4GHz 4채널 조종기로 날리는 카메라 탑재 입문용 쿼드콥터 드론입니다.",
+          "product_type": "RC 드론",
+          "months": [
+            "2016-04",
+            "2016-05",
+            "2016-06"
+          ],
+          "monthly_counts": {
+            "2016-04": 132,
+            "2016-05": 117,
+            "2016-06": 128
+          },
+          "analysis_sample_size": 50
+        },
+        {
+          "parent_asin": "B001CJVTLC",
+          "title_ko": "포켓몬 카드 게임 랜덤 카드 50장",
+          "title_ko_source": "claude-draft",
+          "description_ko": "여러 시리즈의 포켓몬 트레이딩 카드를 무작위로 50장 담은 묶음입니다.",
+          "product_type": "트레이딩 카드",
+          "months": [
+            "2021-04",
+            "2021-05",
+            "2021-06"
+          ],
+          "monthly_counts": {
+            "2021-04": 142,
+            "2021-05": 122,
+            "2021-06": 114
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B077935QMS",
+          "title_ko": "L.O.L. 서프라이즈 컨페티 팝 시리즈 3",
+          "title_ko_source": "claude-draft",
+          "description_ko": "포장을 하나씩 풀며 인형과 액세서리를 찾는 서프라이즈 인형입니다.",
+          "product_type": "서프라이즈 인형",
+          "months": [
+            "2018-02",
+            "2018-03",
+            "2018-04"
+          ],
+          "monthly_counts": {
+            "2018-02": 120,
+            "2018-03": 127,
+            "2018-04": 130
+          },
+          "analysis_sample_size": 20
         }
       ]
     },
@@ -158,12 +478,17 @@
           "title_ko_source": "manual",
           "description_ko": "큐리그, 네스프레소, 드롱기 등 커피·에스프레소 머신의 물때와 석회를 제거하는 미국산 세정제 2병 세트입니다.",
           "product_type": "커피머신 세정제",
-          "months": ["2021-10", "2021-11", "2021-12"],
+          "months": [
+            "2021-10",
+            "2021-11",
+            "2021-12"
+          ],
           "monthly_counts": {
             "2021-10": 123,
             "2021-11": 124,
             "2021-12": 127
-          }
+          },
+          "analysis_sample_size": 70
         },
         {
           "parent_asin": "B0BWLH7QX5",
@@ -171,12 +496,71 @@
           "title_ko_source": "manual",
           "description_ko": "폴리에스터·스판 혼방 소재로 제작된 짙은 회색 1인용 소파 보호 커버입니다.",
           "product_type": "소파 커버",
-          "months": ["2022-11", "2022-12", "2023-01"],
+          "months": [
+            "2022-11",
+            "2022-12",
+            "2023-01"
+          ],
           "monthly_counts": {
             "2022-11": 122,
             "2022-12": 128,
             "2023-01": 125
-          }
+          },
+          "analysis_sample_size": 100
+        },
+        {
+          "parent_asin": "B07D8K5PT5",
+          "title_ko": "비셀 펫 헤어 이레이저 무선 핸디 청소기",
+          "title_ko_source": "claude-draft",
+          "description_ko": "반려동물 털 청소용 리튬이온 배터리 무선 핸디 청소기입니다.",
+          "product_type": "핸디 청소기",
+          "months": [
+            "2021-05",
+            "2021-06",
+            "2021-07"
+          ],
+          "monthly_counts": {
+            "2021-05": 138,
+            "2021-06": 126,
+            "2021-07": 111
+          },
+          "analysis_sample_size": 50
+        },
+        {
+          "parent_asin": "B0BXF6STBS",
+          "title_ko": "에텍시티 디지털 주방 저울",
+          "title_ko_source": "claude-draft",
+          "description_ko": "그램·온스 단위를 지원하는 요리·제빵용 디지털 주방 저울입니다.",
+          "product_type": "주방 저울",
+          "months": [
+            "2019-01",
+            "2019-02",
+            "2019-03"
+          ],
+          "monthly_counts": {
+            "2019-01": 121,
+            "2019-02": 112,
+            "2019-03": 142
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B0C7GYY5N9",
+          "title_ko": "머서 컬리너리 밀레니아 7.5인치 물결날 셰프 나이프",
+          "title_ko_source": "claude-draft",
+          "description_ko": "검은 손잡이의 7.5인치 물결날 셰프 나이프입니다.",
+          "product_type": "주방 칼",
+          "months": [
+            "2021-02",
+            "2021-03",
+            "2021-04"
+          ],
+          "monthly_counts": {
+            "2021-02": 135,
+            "2021-03": 129,
+            "2021-04": 111
+          },
+          "analysis_sample_size": 20
         }
       ]
     },
@@ -188,12 +572,17 @@
           "title_ko_source": "manual",
           "description_ko": "롤당 1,000시트로 구성된 1겹 화장지 12롤 세트이며 하수·정화조와 RV 사용에 적합합니다.",
           "product_type": "화장지",
-          "months": ["2021-01", "2021-02", "2021-03"],
+          "months": [
+            "2021-01",
+            "2021-02",
+            "2021-03"
+          ],
           "monthly_counts": {
             "2021-01": 130,
             "2021-02": 122,
             "2021-03": 122
-          }
+          },
+          "analysis_sample_size": 100
         },
         {
           "parent_asin": "B0B7LC848X",
@@ -201,14 +590,74 @@
           "title_ko_source": "manual",
           "description_ko": "민감한 피부에 사용할 수 있는 리넨 향 세탁세제 시트 200매로 최대 400회 세탁용 제품입니다.",
           "product_type": "세탁세제 시트",
-          "months": ["2021-05", "2021-06", "2021-07"],
+          "months": [
+            "2021-05",
+            "2021-06",
+            "2021-07"
+          ],
           "monthly_counts": {
             "2021-05": 116,
             "2021-06": 135,
             "2021-07": 122
-          }
+          },
+          "analysis_sample_size": 70
+        },
+        {
+          "parent_asin": "B08RB5F2G4",
+          "title_ko": "필립스 소닉케어 2 시리즈 충전식 전동칫솔",
+          "title_ko_source": "claude-draft",
+          "description_ko": "플라그 관리용 충전식 음파 전동칫솔입니다.",
+          "product_type": "전동칫솔",
+          "months": [
+            "2015-01",
+            "2015-02",
+            "2015-03"
+          ],
+          "monthly_counts": {
+            "2015-01": 138,
+            "2015-02": 123,
+            "2015-03": 114
+          },
+          "analysis_sample_size": 50
+        },
+        {
+          "parent_asin": "B01NCOUY05",
+          "title_ko": "케어 터치 안경 렌즈 클리닝 티슈 210매",
+          "title_ko_source": "claude-draft",
+          "description_ko": "개별 포장된 안경·렌즈용 일회용 클리닝 티슈 210매입니다.",
+          "product_type": "렌즈 클리닝 티슈",
+          "months": [
+            "2022-10",
+            "2022-11",
+            "2022-12"
+          ],
+          "monthly_counts": {
+            "2022-10": 141,
+            "2022-11": 121,
+            "2022-12": 113
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B0C42774KB",
+          "title_ko": "페브리즈 다우니 향 방향제 2개",
+          "title_ko_source": "claude-draft",
+          "description_ko": "다우니 에이프릴 프레시 향의 탈취 방향제 2개 묶음입니다.",
+          "product_type": "방향제",
+          "months": [
+            "2020-08",
+            "2020-09",
+            "2020-10"
+          ],
+          "monthly_counts": {
+            "2020-08": 142,
+            "2020-09": 120,
+            "2020-10": 113
+          },
+          "analysis_sample_size": 20
         }
       ]
     }
-  }
+  },
+  "sample_rule": "각 상품의 analysis_sample_size만큼 분석한다. 월별 리뷰 수에 비례해 각 달에 배분(올림)하고, 달 안에서는 SHA-256(review_id) 순서로 고른다. 결과를 보기 전에 정한 규칙이다."
 }

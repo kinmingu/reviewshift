@@ -71,7 +71,7 @@ export default function CatalogPage() {
           </div>
 
           <p className="footer-note">
-            데이터 출처: McAuley-Lab Amazon Reviews 2023 공개 데이터(상품별 연속 3개월 리뷰). 가격·구매 기능이 없는
+            데이터 출처: McAuley-Lab Amazon Reviews 2023 공개 데이터(상품별 연속 3개월 리뷰). AI 분석은 상품마다 20~100건 표본(각 달에서 같은 비율)으로 합니다. 가격·구매 기능이 없는
             리뷰 분석 서비스이며, 평점 등록 수는 구매 수가 아닙니다. 좋아요/아쉬워요 비율은 AI 분류가 끝난 리뷰만
             대상으로 서버에서 계산합니다.
           </p>

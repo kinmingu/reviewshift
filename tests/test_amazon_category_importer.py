@@ -81,7 +81,12 @@ def test_selected_rows_exclude_duplicates_ineligible_and_outside_period(
     assert monthly == {"PARENT1": {"2021-01": 2, "2021-02": 1}}
 
 
-# === [상품 선정 파일 검증] ===
+# === [상품 선정 파일 검증] 카테고리마다 5개, 연속 3개월 ===
+EXTRA_PRODUCTS = [
+    {"parent_asin": f"PARENT-{index}", "months": ["2023-01", "2023-02", "2023-03"],
+     "analysis_sample_size": 20}
+    for index in range(3, 6)
+]
 
 
 def test_load_selection_requires_two_products_and_three_consecutive_months(tmp_path):
@@ -100,6 +105,7 @@ def test_load_selection_requires_two_products_and_three_consecutive_months(tmp_p
                                 "parent_asin": "PARENT-2",
                                 "months": ["2023-01", "2023-02", "2023-03"],
                             },
+                            *EXTRA_PRODUCTS,
                         ]
                     }
                 }
@@ -109,7 +115,7 @@ def test_load_selection_requires_two_products_and_three_consecutive_months(tmp_p
     )
 
     selected = load_selection(path, "Electronics")
-    assert set(selected) == {"PARENT-1", "PARENT-2"}
+    assert set(selected) == {"PARENT-1", "PARENT-2", "PARENT-3", "PARENT-4", "PARENT-5"}
 
 
 def test_load_selection_rejects_non_consecutive_months(tmp_path):
@@ -128,6 +134,7 @@ def test_load_selection_rejects_non_consecutive_months(tmp_path):
                                 "parent_asin": "PARENT-2",
                                 "months": ["2023-01", "2023-02", "2023-03"],
                             },
+                            *EXTRA_PRODUCTS,
                         ]
                     }
                 }

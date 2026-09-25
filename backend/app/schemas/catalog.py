@@ -29,6 +29,8 @@ class ProductSummary(BaseModel):
     source_mode: SourceMode
     # 상품 카드용 활성 분석 요약. 분석된 리뷰가 없으면 비율은 null입니다.
     analyzed_review_count: int = 0
+    # AI 분석 목표 표본 수(메타데이터 analysis_sample_size). 없으면 저장 리뷰 전체가 대상
+    analysis_sample_size: int | None = None
     positive_review_share: float | None = None
     negative_review_share: float | None = None
 
@@ -46,6 +48,9 @@ class AnalysisOverview(BaseModel):
     model: str | None
     prompt_version: str | None
     label_schema_version: str | None
+    # AI 분석 표본 수(없으면 저장 리뷰 전체가 대상)와 저장 리뷰 수
+    sample_size: int | None = None
+    stored_reviews: int = 0
 
 
 class AspectInsight(BaseModel):
@@ -164,6 +169,8 @@ class ReviewResponse(BaseModel):
         "not_started", "pending", "running", "succeeded", "failed"
     ]
     source_mode: SourceMode
+    # 이 리뷰가 AI 분석 표본에 들어 있는지(표본이 없는 상품은 null)
+    in_analysis_sample: bool | None = None
 
 
 class ReviewListResponse(BaseModel):
@@ -237,6 +244,7 @@ class ComparisonResponse(BaseModel):
     is_provisional: bool
     signal_status: Literal[
         "analysis_incomplete",
+        "insufficient_sample",
         "insufficient_data",
         "no_increase_signal",
         "increase_signal",

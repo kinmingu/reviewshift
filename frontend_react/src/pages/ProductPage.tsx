@@ -53,7 +53,9 @@ function Hero({ product, insights }: { product: ProductDetail; insights: Product
             <dd>
               <AnalysisBadge analyzed={insights.analysis.succeeded} total={insights.analysis.total} />{" "}
               <small>
-                {insights.analysis.succeeded}/{insights.analysis.total}건
+                {insights.analysis.sample_size !== null
+                  ? `전체 ${insights.analysis.stored_reviews}건 중 표본 ${insights.analysis.total}건 · 분석 ${insights.analysis.succeeded}건`
+                  : `${insights.analysis.succeeded}/${insights.analysis.total}건`}
                 {insights.analysis.failed > 0 && ` · 실패 ${insights.analysis.failed}건`}
               </small>
             </dd>
@@ -73,7 +75,11 @@ function SummaryPanel({ insights }: { insights: ProductInsights }) {
       <div className="panel-head">
         <div>
           <h2>한눈에 보는 리뷰</h2>
-          <p className="sub">AI가 분류한 리뷰 {analysis.succeeded.toLocaleString()}건을 서버에서 집계했어요</p>
+          <p className="sub">
+            AI가 분류한 리뷰 {analysis.succeeded.toLocaleString()}건을 서버에서 집계했어요
+            {analysis.sample_size !== null &&
+              ` · 전체 ${analysis.stored_reviews}건 중 각 달에서 같은 비율로 뽑은 표본 ${analysis.total}건 기준`}
+          </p>
         </div>
         {provisional && <span className="badge ai">잠정 결과</span>}
       </div>
@@ -103,8 +109,8 @@ function SummaryPanel({ insights }: { insights: ProductInsights }) {
       )}
       {provisional && analysis.succeeded > 0 && (
         <p className="notice">
-          전체 {analysis.total}건 중 {analysis.succeeded}건만 분석된 잠정 결과예요. 분석이 끝나면 비율이 달라질 수
-          있어요.
+          {analysis.sample_size !== null ? "표본" : "전체"} {analysis.total}건 중 {analysis.succeeded}건만 분석된 잠정
+          결과예요. 분석이 끝나면 비율이 달라질 수 있어요.
         </p>
       )}
     </section>
@@ -229,6 +235,7 @@ const SIGNAL_TEXT = {
   increase_signal: { text: "아쉬운 점 증가 신호", className: "warn" },
   no_increase_signal: { text: "뚜렷한 증가 없음", className: "good" },
   analysis_incomplete: { text: "분석 진행 중 · 잠정", className: "ai" },
+  insufficient_sample: { text: "표본이 적어 비교가 어려워요", className: "idle" },
   insufficient_data: { text: "비교할 데이터 부족", className: "idle" },
 } as const;
 
