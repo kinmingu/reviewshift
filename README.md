@@ -287,3 +287,10 @@ claude mcp add reviewshift -- C:\workspaces\ag_f_prj\.venv\Scripts\python.exe -m
 
 등록 후 "reviewshift로 장난감 카테고리에서 아쉬운 점이 많은 상품 알려줘"처럼 요청하면 클라이언트가 위 도구를
 호출한다. DB(Docker)와 검색용 Ollama `bge-m3`가 켜져 있어야 한다.
+
+### 챗봇의 MCP 도구 호출
+
+상품 상세의 리뷰 챗봇(LangGraph)은 위 MCP 서버의 `get_product_report`, `search_reviews` 도구를 MCP 프로토콜로
+호출한다. 질문마다 MCP 서버를 별도 프로세스로 띄워 stdio로 연결하고(약 2~4초 추가), 도구 결과로 답을 만든 뒤
+인용·수치를 검증한다. 화면의 도구 기록에 `[MCP]`로 표시된다. `.env`의 `AGENT_TOOL_TRANSPORT`로 바꿀 수 있다
+(`mcp_stdio` 기본, `mcp_memory` 같은 프로세스 MCP 연결, `direct` 함수 직접 호출).

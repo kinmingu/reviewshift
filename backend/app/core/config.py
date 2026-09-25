@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen3.5:latest"
     # AI 질문 답변 생성 제한 시간(CPU에서 분류 배치와 겹치면 대기 시간이 늘어납니다).
     agent_timeout_seconds: float = 240
+    # 챗봇 도구 호출 방식: mcp_stdio(MCP 서버 별도 프로세스) / mcp_memory / direct
+    agent_tool_transport: str = "mcp_stdio"
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",

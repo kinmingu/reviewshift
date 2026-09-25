@@ -376,6 +376,8 @@ class AgentToolCall(BaseModel):
     ok: bool
     duration_ms: int
     summary: str
+    # mcp_stdio / mcp_memory: MCP 프로토콜로 호출, direct: 함수 직접 호출(테스트)
+    transport: str = "direct"
 
 
 class AgentCitation(BaseModel):

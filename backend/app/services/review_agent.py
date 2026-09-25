@@ -1,10 +1,12 @@
-"""상품 리뷰 질문 Agent (LangGraph).
+"""상품 리뷰 질문 Agent (LangGraph + MCP).
 
 흐름: 입력 검증 → 도구 실행(리뷰 리포트 SQL 집계 + 상품·기간 필터 의미 검색) → 답변 생성(LLM 1회)
      → 검증(인용 리뷰 ID·수치) → 실패 시 1회 재생성 → 반환
 
 설계 원칙
 - CPU 환경이라 LLM 호출은 답변 생성에만 씁니다. 어떤 도구를 부를지는 코드가 정합니다(읽기 전용).
+- 도구는 ReviewShift MCP 서버(get_product_report, search_reviews)를 MCP 프로토콜로 호출합니다.
+  (agent_tool_transport: mcp_stdio 기본 / mcp_memory / direct는 테스트용 함수 직접 호출)
 - 숫자(비율·건수)는 도구가 SQL로 계산한 값만 쓸 수 있고, 답변의 %는 도구 값과 대조합니다.
 - 답변은 도구가 돌려준 실제 리뷰 ID만 인용할 수 있습니다.
 - 리뷰 원문은 신뢰하지 않는 데이터입니다. 원문 안의 지시문은 따르지 않도록 분리해 전달합니다.
@@ -33,6 +35,7 @@ from backend.app.schemas.catalog import (
 )
 from backend.app.services.catalog import CatalogService, ProductNotFoundError
 from backend.app.services.embeddings import EmbeddingError
+from backend.app.services.mcp_tools import McpReviewTools, McpUnavailableError
 from backend.app.services.review_search import ReviewSearchService
 
 AGENT_PROMPT_VERSION = "review-qa-prompt-v4-chat"
@@ -223,10 +226,18 @@ class ReviewQuestionAgent:
         *,
         llm_call: LlmCall | None = None,
         search_service: ReviewSearchService | None = None,
+        tool_transport: str | None = None,
     ) -> None:
         settings = get_settings()
         self.catalog = CatalogService(session)
         self.search_service = search_service or ReviewSearchService(session)
+        # 가짜 검색 서비스를 주입한 단위 테스트는 함수 직접 호출(direct)을 씁니다.
+        self.tool_transport = tool_transport or (
+            "direct" if search_service is not None else settings.agent_tool_transport
+        )
+        self.mcp_tools = (
+            McpReviewTools(self.tool_transport) if self.tool_transport != "direct" else None
+        )
         self.model = settings.ollama_model
         self.llm_call = llm_call or self._ollama_call
         self.graph = self._build_graph()
@@ -267,6 +278,86 @@ class ReviewQuestionAgent:
 
     # === [노드 1] 도구 실행: 리뷰 리포트(SQL) + 의미 검색(상품·기간 필터) ===
     def _collect_evidence(self, state: AgentState) -> AgentState:
+        if self.mcp_tools is not None:
+            return self._collect_via_mcp(state)
+        return self._collect_direct(state)
+
+    # --- MCP 경로: 한 번의 MCP 연결로 리포트 조회와 리뷰 검색 도구를 호출합니다 ---
+    def _collect_via_mcp(self, state: AgentState) -> AgentState:
+        assert self.mcp_tools is not None
+        report_args = {"product_id": state["product_id"]}
+        search_args = {
+            "product_id": state["product_id"],
+            "query": state["search_query"],
+            "months": state["months"],
+            "limit": SEARCH_LIMIT,
+        }
+        try:
+            report_result, search_result = self.mcp_tools.call_tools(
+                [("get_product_report", report_args), ("search_reviews", search_args)]
+            )
+        except McpUnavailableError as exc:
+            raise AgentUnavailableError(str(exc)) from exc
+        if not report_result.ok or report_result.data is None:
+            raise AgentUnavailableError(f"리포트 도구 오류: {report_result.error}")
+
+        insights = ProductInsightResponse.model_validate(report_result.data)
+        facts = _facts_from_insights(insights)
+        tool_calls = [
+            {
+                "tool": "get_product_report",
+                "arguments": report_args,
+                "ok": True,
+                "duration_ms": report_result.duration_ms,
+                "summary": f"리뷰 {insights.review_count}건, 분석 {insights.analysis.succeeded}건",
+                "transport": self.tool_transport,
+            }
+        ]
+        reviews: list[dict[str, Any]] = []
+        notice = None
+        if search_result.ok and search_result.data is not None:
+            data = search_result.data
+            reviews = [
+                {
+                    "review_id": item["review_id"],
+                    "rating": item["rating"],
+                    "date": item["date"],
+                    "title": item.get("title") or "",
+                    "text": item["text"][:EXCERPT_CHARS],
+                    "ai_labels": item.get("ai_labels", []),
+                }
+                for item in data["items"]
+            ]
+            summary = (
+                f"관련 리뷰 {len(reviews)}건 (임베딩 {data['embedded_reviews']}/"
+                f"{data['total_reviews']})"
+            )
+        else:
+            # 검색이 실패해도 SQL 리포트로 답할 수 있게 하되, 그 사실을 응답에 남깁니다.
+            notice = "리뷰 의미 검색을 사용할 수 없어 집계 수치만으로 답했습니다."
+            summary = (search_result.error or "검색 실패")[:200]
+        tool_calls.append(
+            {
+                "tool": "search_reviews",
+                "arguments": search_args,
+                "ok": search_result.ok,
+                "duration_ms": search_result.duration_ms,
+                "summary": summary,
+                "transport": self.tool_transport,
+            }
+        )
+        return {
+            "facts": facts,
+            "reviews": reviews,
+            "allowed_percents": _allowed_percents(facts),
+            "tool_calls": tool_calls,
+            "attempts": 0,
+            "validation_error": None,
+            "notice": notice,
+        }
+
+    # --- 직접 호출 경로(테스트용): 같은 서비스를 함수로 부릅니다 ---
+    def _collect_direct(self, state: AgentState) -> AgentState:
         tool_calls: list[dict[str, Any]] = []
         started = time.perf_counter()
         insights = self.catalog.product_insights(state["product_id"])

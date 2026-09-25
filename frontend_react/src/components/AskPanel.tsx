@@ -1,6 +1,6 @@
 // =====================================================================
 // [리뷰 챗봇] 하단 고정 바 → 대화 창 (RAG: 리뷰 검색 + SQL 리포트 → 답변)
-// - 질문마다 서버 Agent가 관련 리뷰를 찾아 답하고, 인용 리뷰 ID·수치를 검증한 답만 보여 줍니다.
+// - 질문마다 서버 Agent(LangGraph)가 MCP 도구로 리포트·관련 리뷰를 조회해 답하고, 인용 리뷰 ID·수치를 검증한 답만 보여 줍니다.
 // - 이전 대화는 문맥으로만 함께 보냅니다(숫자·근거는 매번 새로 조회).
 // - 자주 묻는 질문은 미리 만들어 저장한 답을 즉시 보여 주고, 처음 보는 질문만 실시간으로 답합니다.
 // - 실시간 답변은 CPU 로컬 모델이라 1~4분 걸릴 수 있어 경과 시간을 표시합니다.
@@ -86,7 +86,8 @@ function AnswerBubble({ result }: { result: AgentAnswer }) {
         <ul className="tool-log">
           {result.tool_calls.map((call, index) => (
             <li key={index}>
-              {call.ok ? "✓" : "✗"} {TOOL_NAMES[call.tool] ?? call.tool} — {call.summary}
+              {call.ok ? "✓" : "✗"} {call.transport?.startsWith("mcp") ? "[MCP] " : ""}
+              {TOOL_NAMES[call.tool] ?? call.tool} — {call.summary}
             </li>
           ))}
           <li>

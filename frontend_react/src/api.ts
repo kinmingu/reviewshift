@@ -198,7 +198,7 @@ export interface AgentAnswer {
   status: "answered" | "failed";
   answer: string | null;
   citations: { review_id: string; rating: number; date: string; excerpt: string }[];
-  tool_calls: { tool: string; ok: boolean; duration_ms: number; summary: string }[];
+  tool_calls: { tool: string; ok: boolean; duration_ms: number; summary: string; transport: string }[];
   generation_attempts: number;
   failure_reason: string | null;
   notice: string | null;

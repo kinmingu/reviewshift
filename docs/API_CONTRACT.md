@@ -83,14 +83,15 @@ fixture와 실제 데이터는 한 목록에서 섞이지 않는다.
 - 사용자가 겪는 제품 문제를 말하면 비슷한 리뷰 유무·언급 빈도(FACTS)·리뷰에 나온 대처를 답하고,
   안전 관련이면 사용 중지와 판매자·제조사 문의를 권한다.
 
-흐름: 도구 실행(`get_product_report` SQL 리포트, `search_reviews` 상품·저장 월 필터 의미 검색) →
+흐름: MCP 도구 호출(`get_product_report` SQL 리포트, `search_reviews` 상품·저장 월 필터 의미 검색. 기본은 MCP 서버를
+별도 프로세스로 띄운 stdio 연결, 설정 `AGENT_TOOL_TRANSPORT`) →
 로컬 Ollama `qwen3.5:latest` 답변 생성(JSON schema) → 검증 → 실패 시 1회 재생성.
 
 - 답변이 인용한 `review_id`는 검색 결과 안에 있어야 한다.
 - 답변의 `%`·`%p` 수치는 도구가 SQL로 계산한 값과 일치해야 한다(반올림 표기만 허용).
 - 리뷰 원문은 `REVIEWS_untrusted_customer_text`로 분리해 전달하며 지시로 따르지 않는다.
 - 검증을 끝내 통과하지 못하면 `status=failed`, `answer=null`, `failure_reason`을 반환한다.
-- 응답에는 `tool_calls` 실행 기록, `generation_attempts`, `model`, `prompt_version`,
+- 응답에는 `tool_calls` 실행 기록(`transport`: `mcp_stdio`/`mcp_memory`/`direct`), `generation_attempts`, `model`, `prompt_version`,
   `latency_ms`, 분석 미완료 여부 `is_provisional`이 포함된다.
 - 질문 길이 오류 `422`, 없는 상품 `404`, LLM 연결 실패·시간 초과(기본 240초) `503`.
   CPU 환경에서 응답까지 1~4분 걸릴 수 있다.
