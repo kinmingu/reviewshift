@@ -175,3 +175,9 @@
 - [x] 35개 상품 × 모든 인접 월 쌍, 항목별 아쉬워요 비율 증가를 한쪽 Fisher 정확 검정 + BH 보정으로 판정
 - [x] 이상징후(q<0.10·10%p·3건)/주의 관찰(p<0.05)/판정 불가(월 10건 미만) 구분, `GET /api/v1/anomalies`
 - [x] 메인 화면 '이상징후 레이더' 섹션, 테스트 5개
+
+## Docker (MVP SHOULD)
+
+- [x] `Dockerfile.api`(Python 3.12, alembic 자동 적용), `frontend_react/Dockerfile`(빌드 후 nginx, /api 프록시 300초)
+- [x] `compose.yaml` app 프로필: db·api·web, Ollama는 host.docker.internal 사용, `pywin32`는 Windows 전용 표시
+- [x] 컨테이너에서 화면→API→DB, 호스트 Ollama 의미 검색, 컨테이너 내부 MCP stdio 도구 호출 확인

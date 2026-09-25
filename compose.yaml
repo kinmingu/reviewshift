@@ -18,6 +18,36 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # === [app 프로필] docker compose --profile app up -d 로 API와 화면까지 한 번에 실행 ===
+  api:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-reviewshift}:${POSTGRES_PASSWORD:-reviewshift_dev_only}@db:5432/${POSTGRES_DB:-reviewshift}
+      SOURCE_MODE: real
+      # AI 모델은 PC에 설치된 Ollama를 사용합니다.
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:latest}
+      AGENT_TOOL_TRANSPORT: ${AGENT_TOOL_TRANSPORT:-mcp_stdio}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    profiles: ["app"]
+    build:
+      context: ./frontend_react
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   reviewshift_postgres_data:
 

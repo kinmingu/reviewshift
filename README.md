@@ -294,3 +294,17 @@ claude mcp add reviewshift -- C:\workspaces\ag_f_prj\.venv\Scripts\python.exe -m
 호출한다. 질문마다 MCP 서버를 별도 프로세스로 띄워 stdio로 연결하고(약 2~4초 추가), 도구 결과로 답을 만든 뒤
 인용·수치를 검증한다. 화면의 도구 기록에 `[MCP]`로 표시된다. `.env`의 `AGENT_TOOL_TRANSPORT`로 바꿀 수 있다
 (`mcp_stdio` 기본, `mcp_memory` 같은 프로세스 MCP 연결, `direct` 함수 직접 호출).
+
+## Docker로 한 번에 실행 (DB + API + 화면)
+
+`compose.yaml`의 `app` 프로필로 API(`Dockerfile.api`)와 React 화면(`frontend_react/Dockerfile`, nginx)을
+컨테이너로 실행한다. AI 모델은 PC에 설치된 Ollama(`qwen3.5:latest`, `bge-m3`)를 `host.docker.internal`로
+사용하며, API 컨테이너는 시작할 때 `alembic upgrade head`를 실행한다.
+
+```powershell
+docker compose --profile app up -d --build   # 처음 빌드 몇 분(API 이미지 약 1.3GB)
+# 화면: http://127.0.0.1:8080
+docker compose --profile app stop api web     # 컨테이너 중지(DB는 계속 실행)
+```
+
+`docker compose up -d db`만 실행하면 기존처럼 DB만 뜨고, 개발 서버(8000/5173)는 PC에서 직접 실행한다.
