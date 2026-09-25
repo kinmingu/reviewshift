@@ -235,7 +235,8 @@ def upsert_data(
                 "review_revision": source.reviews.revision,
                 "metadata_revision": source.metadata.revision,
                 "analysis_months": selection["months"],
-                "baseline_month": selection["months"][0],
+                # 기본 비교는 인접한 마지막 두 달입니다(첫 달↔마지막 달은 가운데 달을 건너뜀).
+                "baseline_month": selection["months"][-2],
                 "target_month": selection["months"][-1],
             },
         }

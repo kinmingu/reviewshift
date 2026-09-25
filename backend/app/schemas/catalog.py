@@ -135,6 +135,8 @@ class ChangeThresholds(BaseModel):
     min_review_count: int
     min_negative_count: int
     min_increase_pp: float
+    # 이 비율 이하의 최종 실패는 월 분석 완료로 보고 비율 분모에서 제외합니다.
+    max_failure_rate: float
 
 
 class ComparisonResponse(BaseModel):

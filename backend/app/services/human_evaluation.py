@@ -191,13 +191,15 @@ class HumanEvaluationService:
 
         review = item.review
         raw_labels = [label.model_dump() for label in payload.gold_labels]
-        # 모델 출력과 동일한 엄격한 taxonomy·원문 부분 문자열 검사를 사람 정답에도 적용합니다.
+        # 모델 출력과 같은 taxonomy·원문 구간·단어 경계 검사를 사람 정답에도 적용합니다.
+        # 다만 사람은 한 단어 근거도 의도적으로 고를 수 있으므로 최소 단어 수는 1로 둡니다.
         try:
             parse_classification(
                 json.dumps({"labels": raw_labels}, ensure_ascii=False),
                 category=review.product.category,
                 title=review.title,
                 text=review.text,
+                min_evidence_words=1,
             )
         except ClassificationError as exc:
             raise EvaluationValidationError(str(exc)) from exc

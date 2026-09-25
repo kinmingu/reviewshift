@@ -101,6 +101,29 @@ def test_invalid_month_returns_422(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize(
+    ("target_month", "baseline_month"),
+    [("2025-02", "2025-02"), ("2025-01", "2025-02")],
+)
+def test_comparison_requires_baseline_before_target(
+    client: TestClient, target_month: str, baseline_month: str
+) -> None:
+    response = client.get(
+        "/api/v1/products/fixture-prod-coffee/comparison",
+        params={"target_month": target_month, "baseline_month": baseline_month},
+    )
+    assert response.status_code == 422
+    assert "earlier" in response.json()["detail"]
+
+
+def test_comparison_reports_failure_tolerance_threshold(client: TestClient) -> None:
+    response = client.get(
+        "/api/v1/products/fixture-prod-coffee/comparison",
+        params={"target_month": "2025-02", "baseline_month": "2025-01"},
+    )
+    assert response.json()["thresholds"]["max_failure_rate"] == pytest.approx(0.05)
+
+
 def _issue(payload: dict, aspect: str, detail: str, polarity: str) -> dict:
     return next(
         item

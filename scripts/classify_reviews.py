@@ -8,6 +8,7 @@ import statistics
 import time
 from collections import Counter
 from datetime import UTC, datetime
+from itertools import zip_longest
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +26,9 @@ from backend.app.models import (
     ReviewAnalysisResult,
     ReviewLabel,
 )
+from backend.app.services.months import month_bounds
 from backend.app.services.review_classification import (
+    EVIDENCE_RULE_VERSION,
     PROMPT_VERSION,
     ClassificationError,
     OllamaReviewClassifier,
@@ -93,30 +96,45 @@ def official_review_ids(session: Session) -> list[str]:
 def product_month_review_ids(
     session: Session, product_id: str, months: list[str]
 ) -> list[str]:
-    """선택 상품·월의 적격 리뷰를 별점과 무관하게 전부 반환합니다."""
+    """선택 상품·월의 적격 리뷰를 별점과 무관하게 전부, 치우치지 않는 처리 순서로 반환합니다.
+
+    날짜순으로 처리하면 중간에 멈췄을 때 앞 달만 끝나고 뒤 달은 월초 리뷰만 분석되어
+    잠정 비율이 치우칩니다. 그래서
+    - 월 안에서는 SHA-256(review_id) 순서(날짜와 무관하지만 재현 가능)로 섞고,
+    - 여러 달은 한 건씩 번갈아 가며 처리합니다.
+    """
     if not months:
         raise ValueError("상품 기간 실행에는 하나 이상의 --month가 필요합니다.")
-    reviews = list(
-        session.scalars(
-            select(Review)
+    per_month: list[list[str]] = []
+    for month in sorted(set(months)):
+        # 월 경계는 API 집계와 같은 UTC [월초, 다음 월초)입니다.
+        start, end = month_bounds(month)
+        ids = session.scalars(
+            select(Review.id)
             .join(Product, Product.id == Review.product_id)
             .where(
                 Review.product_id == product_id,
                 Review.source_mode == "real",
                 Review.eligible.is_(True),
                 Product.category.in_(REAL_CATEGORY_KEYS),
+                Review.reviewed_at >= start,
+                Review.reviewed_at < end,
             )
-            .order_by(Review.reviewed_at, Review.id)
-        )
-    )
+        ).all()
+        per_month.append(sorted(ids, key=_processing_order_key))
     selected = [
-        review.id
-        for review in reviews
-        if review.reviewed_at.strftime("%Y-%m") in set(months)
+        review_id
+        for group in zip_longest(*per_month)
+        for review_id in group
+        if review_id is not None
     ]
     if not selected:
         raise ValueError(f"선택 상품·월에 분석 가능한 리뷰가 없습니다: {product_id}")
     return selected
+
+
+def _processing_order_key(review_id: str) -> str:
+    return hashlib.sha256(f"reviewshift-processing-order|{review_id}".encode()).hexdigest()
 
 
 def ensure_run(
@@ -165,6 +183,7 @@ def ensure_run(
                 "input_language": "English",
                 "rating_used_for_classification": False,
                 "model_identity": model_identity,
+                "evidence_rule_versions": [EVIDENCE_RULE_VERSION],
             },
             status="in_progress",
         )
@@ -180,6 +199,10 @@ def ensure_run(
             "max_attempts": max_attempts,
             "timeout_seconds": timeout_seconds,
             "model_identity": model_identity,
+            # 같은 run에서 근거 규칙이 바뀐 이력을 남깁니다. 이전 결과를 새 규칙으로 간주하지 않습니다.
+            "evidence_rule_versions": sorted(
+                {*run.config_json.get("evidence_rule_versions", []), EVIDENCE_RULE_VERSION}
+            ),
         }
     session.commit()
     return run

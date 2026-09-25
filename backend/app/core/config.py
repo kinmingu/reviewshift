@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     analysis_min_review_count: int = 30
     analysis_min_negative_count: int = 5
     analysis_min_increase_pp: float = 10.0
+    # 재시도 후에도 실패한 리뷰가 이 비율 이하이면 해당 월을 분석 완료로 보고 분모에서 제외합니다.
+    analysis_max_failure_rate: float = 0.05
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen3.5:latest"
 

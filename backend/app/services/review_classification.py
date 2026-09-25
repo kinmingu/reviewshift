@@ -57,33 +57,56 @@ def review_input_hash(title: str | None, text: str) -> str:
     return hashlib.sha256(source).hexdigest()
 
 
-def _source_evidence(evidence: str, original_parts: list[str]) -> str | None:
+# === [원문 근거 검증] 모델이 낸 근거가 리뷰 원문의 실제 구간인지 확인합니다 ===
+# 근거 규칙이 바뀌면 이 버전을 올리고 run 설정에 기록합니다.
+EVIDENCE_RULE_VERSION = "evidence-rule-v2-word-boundary-min2"
+MODEL_MIN_EVIDENCE_WORDS = 2
+
+# 곡선 따옴표·대시는 1:1 문자 치환이라 치환 전후 위치가 같습니다.
+_PUNCTUATION_TABLE = str.maketrans(
+    {"’": "'", "‘": "'", "“": '"', "”": '"', "–": "-", "—": "-"}
+)
+
+
+def _source_evidence(
+    evidence: str, original_parts: list[str], *, min_words: int
+) -> tuple[str | None, str | None]:
+    """(원문 구간, 실패 이유)를 반환합니다.
+
+    허용하는 차이는 따옴표 모양, 대소문자, 연속 공백뿐이고 단어 변경·요약은 허용하지 않습니다.
+    - 단어 경계: "on"이 "Amazon" 안에서 일치하는 식의 단어 일부 일치는 거부합니다.
+    - 최소 길이: min_words보다 짧은 근거는 제목이나 본문 전체와 같을 때만 허용합니다.
+    """
+    tokens = evidence.translate(_PUNCTUATION_TABLE).split()
+    if not tokens:
+        return None, "빈 근거입니다."
+    pattern = re.compile(
+        r"(?<!\w)" + r"\s+".join(re.escape(token) for token in tokens) + r"(?!\w)",
+        re.IGNORECASE,
+    )
+    too_short = False
     for part in original_parts:
-        if evidence in part:
-            return evidence
-    # 모델이 곡선 따옴표를 ASCII로 바꾸는 경우만 1:1 위치를 찾아 실제 원문 문자로 되돌립니다.
-    # 단어 변경·요약·의미 유사 문장은 허용하지 않습니다.
-    table = str.maketrans({"’": "'", "‘": "'", "“": '"', "”": '"', "–": "-", "—": "-"})
-    normalized_evidence = evidence.translate(table)
-    for part in original_parts:
-        # 모델의 대소문자 변경도 위치 확인에만 허용하고 저장값은 원문의 실제 대소문자를 쓴다.
-        index = part.translate(table).lower().find(normalized_evidence.lower())
-        if index >= 0:
-            return part[index : index + len(evidence)]
-    # 원문의 연속 공백·줄바꿈을 모델이 한 칸으로 정리한 경우에도 단어를 바꾸지는 않고,
-    # 실제 입력에서 일치한 전체 구간(원래 공백 포함)을 그대로 저장합니다.
-    tokens = normalized_evidence.split()
-    if len(tokens) > 1:
-        whitespace_flexible = r"\s+".join(re.escape(token) for token in tokens)
-        for part in original_parts:
-            match = re.search(whitespace_flexible, part.translate(table), re.IGNORECASE)
-            if match:
-                return part[match.start() : match.end()]
-    return None
+        match = pattern.search(part.translate(_PUNCTUATION_TABLE))
+        if match is None:
+            continue
+        # 저장값은 모델 출력이 아니라 원문의 실제 문자(대소문자·공백 포함)입니다.
+        span = part[match.start() : match.end()]
+        if len(tokens) < min_words and span.strip() != part.strip():
+            too_short = True
+            continue
+        return span, None
+    if too_short:
+        return None, f"근거가 너무 짧습니다({len(tokens)}단어, 최소 {min_words}단어)"
+    return None, "원문에서 찾을 수 없는 근거 구간입니다"
 
 
 def parse_classification(
-    content: str, *, category: str, title: str | None, text: str
+    content: str,
+    *,
+    category: str,
+    title: str | None,
+    text: str,
+    min_evidence_words: int = MODEL_MIN_EVIDENCE_WORDS,
 ) -> ClassificationOutput:
     try:
         payload: Any = json.loads(content)
@@ -124,11 +147,11 @@ def parse_classification(
             )
         if polarity not in polarities:
             raise TaxonomyValidationError(f"허용되지 않은 감성입니다: {polarity}")
-        source_evidence = _source_evidence(evidence, original_parts) if evidence else None
+        source_evidence, reason = _source_evidence(
+            evidence, original_parts, min_words=min_evidence_words
+        )
         if source_evidence is None:
-            raise EvidenceValidationError(
-                f"원문에서 찾을 수 없는 근거 구간입니다: {evidence!r}"
-            )
+            raise EvidenceValidationError(f"{reason}: {evidence!r}")
         key = (aspect, detail, polarity, source_evidence)
         if key not in seen:
             labels.append(ClassifiedLabel(*key))

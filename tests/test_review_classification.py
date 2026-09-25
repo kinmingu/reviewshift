@@ -1,4 +1,5 @@
 import json
+from datetime import UTC
 from pathlib import Path
 
 import pytest
@@ -407,19 +408,58 @@ def test_explicit_retry_preserves_cumulative_attempt_count() -> None:
         _delete_test_run(run_id)
 
 
-def test_partial_and_failed_analysis_states_are_distinct() -> None:
-    assert (
-        CatalogService._period_status(AnalysisCoverageAggregate(10, 2, 0, 0, 2))
-        == "in_progress"
-    )
-    assert (
-        CatalogService._period_status(AnalysisCoverageAggregate(10, 8, 1, 0, 7))
-        == "partial_failure"
-    )
-    assert (
-        CatalogService._period_status(AnalysisCoverageAggregate(10, 10, 0, 0, 8))
-        == "complete"
-    )
+def test_period_status_tolerates_small_final_failure_rate() -> None:
+    status = CatalogService._period_status
+    # (total, succeeded, failed, in_progress, labeled)
+    assert status(AnalysisCoverageAggregate(0, 0, 0, 0, 0), 0.05) == "not_started"
+    assert status(AnalysisCoverageAggregate(10, 2, 0, 0, 2), 0.05) == "in_progress"
+    # 처리 중에 실패가 생겨도 남은 리뷰가 있으면 아직 진행 중입니다.
+    assert status(AnalysisCoverageAggregate(100, 50, 1, 0, 40), 0.05) == "in_progress"
+    assert status(AnalysisCoverageAggregate(100, 98, 1, 1, 80), 0.05) == "in_progress"
+    assert status(AnalysisCoverageAggregate(10, 10, 0, 0, 8), 0.05) == "complete"
+    # 재시도 후에도 남은 실패 1건이 기간 전체를 영원히 막지 않습니다(1/125 = 0.8%).
+    assert status(AnalysisCoverageAggregate(125, 124, 1, 0, 100), 0.05) == "complete"
+    # 기준과 같은 실패율은 허용하고, 넘으면 일부 실패로 남깁니다.
+    assert status(AnalysisCoverageAggregate(100, 95, 5, 0, 80), 0.05) == "complete"
+    assert status(AnalysisCoverageAggregate(100, 94, 6, 0, 80), 0.05) == "partial_failure"
+    assert status(AnalysisCoverageAggregate(10, 8, 2, 0, 7), 0.05) == "partial_failure"
+
+
+def test_model_evidence_requires_word_boundary_and_minimum_length() -> None:
+    def parse(evidence: str, *, title: str | None = "Great value", min_words: int = 2):
+        return parse_classification(
+            json.dumps(
+                {
+                    "labels": [
+                        {
+                            "code": "performance.core_performance",
+                            "sentiment": "positive",
+                            "evidence": evidence,
+                        }
+                    ]
+                }
+            ),
+            category="Electronics",
+            title=title,
+            text="Bought on Amazon. The volume is loud and it works great.",
+            min_evidence_words=min_words,
+        )
+
+    assert parse("works great").labels[0].evidence_span == "works great"
+    # 단어 일부 일치 거부: "on"이 "Amazon" 안에, "work"가 "works" 안에 있어도 안 됩니다.
+    with pytest.raises(EvidenceValidationError, match="찾을 수 없는"):
+        parse("azon. The")
+    with pytest.raises(EvidenceValidationError, match="찾을 수 없는"):
+        parse("it work")
+    # 모델 출력의 한 단어 근거는 원문에 있어도 거부합니다.
+    with pytest.raises(EvidenceValidationError, match="너무 짧습니다"):
+        parse("volume")
+    # 제목 전체가 한 단어인 짧은 리뷰는 예외로 허용합니다.
+    assert parse("Amazin!!!", title="Amazin!!!").labels[0].evidence_span == "Amazin!!!"
+    # 사람 정답은 한 단어 근거를 허용하되 단어 경계는 똑같이 검사합니다.
+    assert parse("volume", min_words=1).labels[0].evidence_span == "volume"
+    with pytest.raises(EvidenceValidationError):
+        parse("olume", min_words=1)
 
 
 @real_data
@@ -434,8 +474,21 @@ def test_product_month_selection_includes_every_eligible_review() -> None:
 
     assert len(ids) == 233
     assert len(ids) == len(set(ids))
-    assert {review.reviewed_at.strftime("%Y-%m") for review in reviews if review} == {
-        "2022-01",
-        "2022-02",
-    }
+    months = [
+        month_bounds_label(review.reviewed_at) for review in reviews if review is not None
+    ]
+    assert set(months) == {"2022-01", "2022-02"}
     assert all(review is not None and review.eligible for review in reviews)
+    # 중간에 멈춰도 한 달만 끝나지 않도록 두 달을 번갈아 처리합니다(2월 67건이 먼저 소진).
+    assert months[:134] == ["2022-01", "2022-02"] * 67
+    # 월 안에서도 날짜순이 아니어야 월초 리뷰에 치우치지 않습니다.
+    january = [review.reviewed_at for review in reviews if review is not None][:134:2]
+    assert january != sorted(january)
+    # 같은 입력이면 순서는 항상 같습니다.
+    with SessionLocal() as session:
+        again = product_month_review_ids(session, "amazon-B087H2LWWZ", ["2022-02", "2022-01"])
+    assert again == ids
+
+
+def month_bounds_label(value) -> str:
+    return value.astimezone(UTC).strftime("%Y-%m")

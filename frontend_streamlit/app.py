@@ -187,16 +187,15 @@ def _render_real_comparison(product: dict[str, Any]) -> None:
         st.info("비교할 수 있는 완료 월이 두 개 이상 필요합니다.")
         return
 
-    metadata = product["metadata"]
-    default_baseline = metadata.get("baseline_month")
-    default_target = metadata.get("target_month")
-    baseline_index = months.index(default_baseline) if default_baseline in months else len(months) - 2
-    target_index = months.index(default_target) if default_target in months else len(months) - 1
+    # 기본 비교는 인접한 마지막 두 달입니다. 첫 달과 마지막 달을 비교하면 가운데 달을 건너뜁니다.
     baseline_col, target_col = st.columns(2)
     with baseline_col:
-        baseline_month = st.selectbox("비교 월", months, index=baseline_index)
+        baseline_month = st.selectbox("비교 월", months, index=len(months) - 2)
     with target_col:
-        target_month = st.selectbox("분석 월", months, index=target_index)
+        target_month = st.selectbox("분석 월", months, index=len(months) - 1)
+    if baseline_month >= target_month:
+        st.info("비교 월은 분석 월보다 이전 달이어야 합니다.")
+        return
 
     comparison = client.comparison(product["id"], target_month, baseline_month)
     coverage = comparison["coverage"]
@@ -265,6 +264,12 @@ def _render_real_comparison(product: dict[str, Any]) -> None:
         },
     ]
     st.dataframe(pd.DataFrame(coverage_rows), hide_index=True, width="stretch")
+    failed_total = coverage["baseline_failed"] + coverage["target_failed"]
+    if state == "complete" and failed_total:
+        st.caption(
+            f"재시도 후에도 실패한 {failed_total}건은 허용 기준"
+            f"({comparison['thresholds']['max_failure_rate']:.0%}) 이하라 비율 분모에서 제외했습니다."
+        )
 
     if comparison["is_provisional"]:
         st.warning(
@@ -369,6 +374,9 @@ def _render_fixture_comparison(product: dict[str, Any]) -> None:
         baseline_month = st.selectbox("비교 월", months, index=len(months) - 2)
     with target_col:
         target_month = st.selectbox("분석 월", months, index=len(months) - 1)
+    if baseline_month >= target_month:
+        st.info("비교 월은 분석 월보다 이전 달이어야 합니다.")
+        return
 
     comparison = client.comparison(product["id"], target_month, baseline_month)
     coverage = comparison["coverage"]

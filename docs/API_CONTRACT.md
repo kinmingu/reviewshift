@@ -60,6 +60,16 @@ fixture와 실제 데이터는 한 목록에서 섞이지 않는다.
 쿼리:
 
 - `target_month`, `baseline_month`: 필수 `YYYY-MM`
+- `baseline_month`는 `target_month`보다 이전 달이어야 한다. 같은 달이거나 역순이면 `422`.
+
+월별 분석 상태(`*_analysis_status`)는 다음과 같다.
+
+- `complete`: 모든 리뷰가 성공 또는 최종 실패로 끝났고, 최종 실패 비율이
+  `thresholds.max_failure_rate`(기본 0.05) 이하. 실패 리뷰는 비율 분모에서 빠지고 실패 수는
+  `coverage`에 그대로 남는다.
+- `partial_failure`: 모두 끝났지만 최종 실패 비율이 기준을 넘음
+- `in_progress`: 대기·실행 중이거나 아직 처리하지 않은 리뷰가 있음(처리 중 실패 포함)
+- `not_started`: 활성 분석 결과가 없음
 
 `coverage`에는 두 월별 전체 리뷰, 라벨이 하나 이상인 리뷰, 성공·실패·진행 중·미처리 수,
 성공 처리율, 평균 별점과 분석 상태가 포함된다. 성공에는 정상 빈 라벨 결과도 포함한다.

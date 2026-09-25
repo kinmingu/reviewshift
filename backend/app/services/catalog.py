@@ -90,6 +90,9 @@ class CatalogService:
         product = self._require_product(product_id)
         target_start, target_end = month_bounds(target_month)
         baseline_start, baseline_end = month_bounds(baseline_month)
+        # 변화율은 "이전 달 → 이후 달" 방향만 의미가 있으므로 같은 달·역방향 비교를 막습니다.
+        if baseline_start >= target_start:
+            raise ValueError("baseline_month must be earlier than target_month")
         target_total = self.reviews.count_eligible(product_id, target_start, target_end)
         baseline_total = self.reviews.count_eligible(
             product_id, baseline_start, baseline_end
@@ -111,8 +114,13 @@ class CatalogService:
         baseline_analysis = self._analysis_coverage(
             product_id, baseline_start, baseline_end, run, baseline_total
         )
-        target_status = self._period_status(target_analysis)
-        baseline_status = self._period_status(baseline_analysis)
+        settings = get_settings()
+        target_status = self._period_status(
+            target_analysis, settings.analysis_max_failure_rate
+        )
+        baseline_status = self._period_status(
+            baseline_analysis, settings.analysis_max_failure_rate
+        )
         coverage = CoverageResponse(
             target_total=target_total,
             target_labeled=target_analysis.labeled,
@@ -142,7 +150,6 @@ class CatalogService:
         )
         any_succeeded = target_analysis.succeeded + baseline_analysis.succeeded > 0
         issues: list[ComparisonIssue] = []
-        settings = get_settings()
         taxonomy = category_labels(product.category)
         increase_signal = False
         if run is not None and any_succeeded and target_total > 0 and baseline_total > 0:
@@ -234,6 +241,7 @@ class CatalogService:
             min_review_count=settings.analysis_min_review_count,
             min_negative_count=settings.analysis_min_negative_count,
             min_increase_pp=settings.analysis_min_increase_pp,
+            max_failure_rate=settings.analysis_max_failure_rate,
         )
         return ComparisonResponse(
             product_id=product_id,
@@ -338,13 +346,22 @@ class CatalogService:
             source_mode=product.source_mode,
         )
 
+    # === [기간 분석 상태] 처리 완료 여부와 실패 허용 기준으로 비교 가능 여부를 정합니다 ===
     @staticmethod
-    def _period_status(coverage: AnalysisCoverageAggregate) -> str:
-        if coverage.failed > 0:
+    def _period_status(coverage: AnalysisCoverageAggregate, max_failure_rate: float) -> str:
+        """재시도해도 계속 실패하는 리뷰 1건 때문에 기간 전체가 영원히 미완료가 되지 않게 합니다.
+
+        - 모든 리뷰가 성공 또는 최종 실패로 끝났고 실패율이 기준 이하 → complete
+          (실패 리뷰는 비율 분모에서 빠지고, 실패 건수는 coverage에 그대로 남습니다.)
+        - 모두 끝났지만 실패율이 기준 초과 → partial_failure
+        - 아직 처리 중이거나 미처리 리뷰가 있음 → in_progress
+        """
+        finished = coverage.succeeded + coverage.failed
+        if coverage.total > 0 and finished >= coverage.total and coverage.in_progress == 0:
+            if coverage.failed / coverage.total <= max_failure_rate:
+                return "complete"
             return "partial_failure"
-        if coverage.total > 0 and coverage.succeeded == coverage.total:
-            return "complete"
-        if coverage.succeeded > 0 or coverage.in_progress > 0:
+        if coverage.succeeded > 0 or coverage.failed > 0 or coverage.in_progress > 0:
             return "in_progress"
         return "not_started"
 
