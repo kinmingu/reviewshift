@@ -1,0 +1,434 @@
+import json
+from pathlib import Path
+
+import pytest
+from sqlalchemy import delete, select
+
+from backend.app.core.analysis_taxonomy import category_labels, load_taxonomy
+from backend.app.core.database import SessionLocal
+from backend.app.models import AnalysisRun, Review, ReviewAnalysisResult
+from backend.app.repositories.catalog import AnalysisCoverageAggregate
+from backend.app.services.catalog import CatalogService
+from backend.app.services.review_classification import (
+    ClassificationOutput,
+    EvidenceValidationError,
+    OllamaReviewClassifier,
+    TaxonomyValidationError,
+    output_schema,
+    parse_classification,
+)
+from scripts.classify_reviews import process_review, product_month_review_ids
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_category_taxonomy_has_korean_display_names() -> None:
+    label = category_labels("Beauty_and_Personal_Care")[("beauty_use", "hair_drying")]
+    assert label["aspect_name_ko"] == "미용 사용 경험"
+    assert label["detail_name_ko"] == "모발 건조"
+
+
+def test_classification_parser_accepts_multiple_and_opposite_labels() -> None:
+    title = "Good sound, bad connection"
+    text = "The sound is clear but Bluetooth keeps disconnecting."
+    content = json.dumps(
+        {
+            "labels": [
+                {
+                    "aspect_code": "audio_video",
+                    "detail_code": "sound_quality",
+                    "polarity": "positive",
+                    "evidence_span": "sound is clear",
+                },
+                {
+                    "aspect_code": "power_connection",
+                    "detail_code": "connectivity",
+                    "polarity": "negative",
+                    "evidence_span": "Bluetooth keeps disconnecting",
+                },
+            ]
+        }
+    )
+
+    output = parse_classification(
+        content, category="Electronics", title=title, text=text
+    )
+
+    assert len(output.labels) == 2
+    assert {label.polarity for label in output.labels} == {"positive", "negative"}
+
+
+def test_classification_parser_accepts_normal_empty_result() -> None:
+    output = parse_classification(
+        '{"labels": []}',
+        category="Electronics",
+        title="No opinion",
+        text="This is the model I received.",
+    )
+    assert output.labels == ()
+
+
+def test_v2_schema_uses_only_valid_combined_taxonomy_codes() -> None:
+    item_schema = output_schema("Sports_and_Outdoors")["properties"]["labels"][
+        "items"
+    ]
+    codes = item_schema["properties"]["code"]["enum"]
+    assert "sports_use.inflation" in codes
+    assert "performance.inflation" not in codes
+    assert item_schema["required"] == ["code", "sentiment", "evidence"]
+
+
+def test_v2_compact_output_is_parsed_and_invalid_pair_is_rejected() -> None:
+    output = parse_classification(
+        json.dumps(
+            {
+                "labels": [
+                    {
+                        "code": "sports_use.inflation",
+                        "sentiment": "negative",
+                        "evidence": "no pump included",
+                    }
+                ]
+            }
+        ),
+        category="Sports_and_Outdoors",
+        title="no pump included",
+        text="The box was empty.",
+    )
+    assert output.labels[0].detail_code == "inflation"
+    with pytest.raises(TaxonomyValidationError):
+        parse_classification(
+            '{"labels":[{"code":"performance.inflation",'
+            '"sentiment":"negative","evidence":"no pump included"}]}',
+            category="Sports_and_Outdoors",
+            title="no pump included",
+            text="The box was empty.",
+        )
+
+
+def test_classifier_excludes_product_metadata_and_records_ollama_metrics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class _Response:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return {
+                "message": {"content": '{"labels":[]}'},
+                "total_duration": 20,
+                "load_duration": 1,
+                "prompt_eval_count": 30,
+                "prompt_eval_duration": 10,
+                "eval_count": 5,
+                "eval_duration": 9,
+                "done_reason": "stop",
+            }
+
+    def fake_post(*_: object, **kwargs: object) -> _Response:
+        captured.update(kwargs)
+        return _Response()
+
+    monkeypatch.setattr("backend.app.services.review_classification.requests.post", fake_post)
+    classifier = OllamaReviewClassifier(model="test-model")
+    result = classifier.classify(
+        category="Toys_and_Games",
+        product_title="Multicolor product metadata must not be evidence",
+        review_title="A gift",
+        review_text="I gave it to my grandson.",
+    )
+
+    request_json = captured["json"]
+    assert isinstance(request_json, dict)
+    user_payload = json.loads(request_json["messages"][1]["content"])
+    assert "product_title" not in user_payload
+    assert request_json["think"] is False
+    assert request_json["keep_alive"] == "30m"
+    assert result.model_metrics["prompt_eval_count"] == 30
+
+
+def test_classification_parser_rejects_free_text_taxonomy() -> None:
+    content = json.dumps(
+        {
+            "labels": [
+                {
+                    "aspect_code": "invented",
+                    "detail_code": "anything",
+                    "polarity": "negative",
+                    "evidence_span": "bad",
+                }
+            ]
+        }
+    )
+    with pytest.raises(TaxonomyValidationError):
+        parse_classification(
+            content, category="Electronics", title="bad", text="bad"
+        )
+
+
+def test_classification_parser_rejects_non_verbatim_evidence() -> None:
+    content = json.dumps(
+        {
+            "labels": [
+                {
+                    "aspect_code": "performance",
+                    "detail_code": "reliability",
+                    "polarity": "negative",
+                    "evidence_span": "stopped after one week",
+                }
+            ]
+        }
+    )
+    with pytest.raises(EvidenceValidationError):
+        parse_classification(
+            content,
+            category="Electronics",
+            title="Broken",
+            text="It stopped working after seven days.",
+        )
+
+
+def test_typographic_quote_is_mapped_back_to_exact_source_text() -> None:
+    content = json.dumps(
+        {
+            "labels": [
+                {
+                    "aspect_code": "performance",
+                    "detail_code": "reliability",
+                    "polarity": "negative",
+                    "evidence_span": "it doesn't work",
+                }
+            ]
+        }
+    )
+    output = parse_classification(
+        content,
+        category="Electronics",
+        title=None,
+        text="After a week it doesn’t work anymore.",
+    )
+    assert output.labels[0].evidence_span == "it doesn’t work"
+
+
+def test_collapsed_whitespace_is_mapped_back_to_exact_source_text() -> None:
+    output = parse_classification(
+        json.dumps(
+            {
+                "labels": [
+                    {
+                        "aspect_code": "service",
+                        "detail_code": "shipping",
+                        "polarity": "positive",
+                        "evidence_span": "shipped fast",
+                    }
+                ]
+            }
+        ),
+        category="Sports_and_Outdoors",
+        title=None,
+        text="packaged well and shipped  fast",
+    )
+    assert output.labels[0].evidence_span == "shipped  fast"
+
+
+class _EmptyClassifier:
+    model = "test-model"
+
+    def __init__(self, fail_once: bool = False) -> None:
+        self.calls = 0
+        self.fail_once = fail_once
+        self.last_previous_error: str | None = None
+
+    def classify(self, **kwargs: object) -> ClassificationOutput:
+        self.calls += 1
+        previous_error = kwargs.get("previous_error")
+        self.last_previous_error = (
+            str(previous_error) if previous_error is not None else None
+        )
+        if self.fail_once and self.calls == 1:
+            raise EvidenceValidationError("test evidence failure")
+        return ClassificationOutput(labels=(), raw_response='{"labels":[]}')
+
+
+class _AlwaysFailClassifier:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def classify(self, **_: object) -> ClassificationOutput:
+        self.calls += 1
+        raise EvidenceValidationError("test evidence failure")
+
+
+def _create_test_run(run_id: str) -> str:
+    trial = json.loads(
+        (PROJECT_ROOT / "data" / "evaluation" / "trial_70.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    review_id = trial["review_ids"][0]
+    with SessionLocal() as session:
+        session.add(
+            AnalysisRun(
+                id=run_id,
+                data_version="test-data",
+                model="test-model",
+                prompt_version="test-prompt",
+                label_schema_version=str(load_taxonomy()["version"]),
+                source_mode="real",
+                is_active=False,
+                target_review_count=1,
+                config_json={"test": True},
+                status="in_progress",
+            )
+        )
+        session.commit()
+        assert session.get(Review, review_id) is not None
+    return review_id
+
+
+def _delete_test_run(run_id: str) -> None:
+    with SessionLocal() as session:
+        session.execute(delete(AnalysisRun).where(AnalysisRun.id == run_id))
+        session.commit()
+
+
+def test_processing_is_idempotent_for_same_version_and_input() -> None:
+    run_id = "test-analysis-idempotency"
+    review_id = _create_test_run(run_id)
+    classifier = _EmptyClassifier()
+    try:
+        first = process_review(
+            run_id=run_id,
+            review_id=review_id,
+            classifier=classifier,  # type: ignore[arg-type]
+            max_attempts=2,
+            retry_failed=False,
+        )
+        second = process_review(
+            run_id=run_id,
+            review_id=review_id,
+            classifier=classifier,  # type: ignore[arg-type]
+            max_attempts=2,
+            retry_failed=False,
+        )
+        assert first == "succeeded"
+        assert second == "skipped"
+        assert classifier.calls == 1
+        with SessionLocal() as session:
+            results = list(
+                session.scalars(
+                    select(ReviewAnalysisResult).where(
+                        ReviewAnalysisResult.run_id == run_id,
+                        ReviewAnalysisResult.review_id == review_id,
+                    )
+                )
+            )
+            assert len(results) == 1
+            assert results[0].status == "succeeded"
+    finally:
+        _delete_test_run(run_id)
+
+
+def test_validation_failure_is_retried_and_recorded() -> None:
+    run_id = "test-analysis-retry"
+    review_id = _create_test_run(run_id)
+    classifier = _EmptyClassifier(fail_once=True)
+    try:
+        outcome = process_review(
+            run_id=run_id,
+            review_id=review_id,
+            classifier=classifier,  # type: ignore[arg-type]
+            max_attempts=2,
+            retry_failed=False,
+        )
+        assert outcome == "succeeded"
+        with SessionLocal() as session:
+            result = session.scalar(
+                select(ReviewAnalysisResult).where(
+                    ReviewAnalysisResult.run_id == run_id,
+                    ReviewAnalysisResult.review_id == review_id,
+                )
+            )
+            assert result is not None
+            assert result.attempt_count == 2
+            assert result.status == "succeeded"
+            assert result.error_history[0]["type"] == "evidence_validation_error"
+            assert result.error_history[0]["duration_ms"] >= 0
+    finally:
+        _delete_test_run(run_id)
+
+
+def test_explicit_retry_preserves_cumulative_attempt_count() -> None:
+    run_id = "test-analysis-cumulative-retry"
+    review_id = _create_test_run(run_id)
+    failing = _AlwaysFailClassifier()
+    succeeding = _EmptyClassifier()
+    try:
+        assert (
+            process_review(
+                run_id=run_id,
+                review_id=review_id,
+                classifier=failing,  # type: ignore[arg-type]
+                max_attempts=2,
+                retry_failed=False,
+            )
+            == "failed"
+        )
+        assert (
+            process_review(
+                run_id=run_id,
+                review_id=review_id,
+                classifier=succeeding,  # type: ignore[arg-type]
+                max_attempts=2,
+                retry_failed=True,
+            )
+            == "succeeded"
+        )
+        with SessionLocal() as session:
+            result = session.scalar(
+                select(ReviewAnalysisResult).where(
+                    ReviewAnalysisResult.run_id == run_id,
+                    ReviewAnalysisResult.review_id == review_id,
+                )
+            )
+            assert result is not None
+            assert result.attempt_count == 3
+            assert len(result.error_history) == 2
+            assert succeeding.last_previous_error == "test evidence failure"
+    finally:
+        _delete_test_run(run_id)
+
+
+def test_partial_and_failed_analysis_states_are_distinct() -> None:
+    assert (
+        CatalogService._period_status(AnalysisCoverageAggregate(10, 2, 0, 0, 2))
+        == "in_progress"
+    )
+    assert (
+        CatalogService._period_status(AnalysisCoverageAggregate(10, 8, 1, 0, 7))
+        == "partial_failure"
+    )
+    assert (
+        CatalogService._period_status(AnalysisCoverageAggregate(10, 10, 0, 0, 8))
+        == "complete"
+    )
+
+
+def test_product_month_selection_includes_every_eligible_review() -> None:
+    with SessionLocal() as session:
+        ids = product_month_review_ids(
+            session,
+            "amazon-B087H2LWWZ",
+            ["2022-01", "2022-02"],
+        )
+        reviews = [session.get(Review, review_id) for review_id in ids]
+
+    assert len(ids) == 233
+    assert len(ids) == len(set(ids))
+    assert {review.reviewed_at.strftime("%Y-%m") for review in reviews if review} == {
+        "2022-01",
+        "2022-02",
+    }
+    assert all(review is not None and review.eligible for review in reviews)

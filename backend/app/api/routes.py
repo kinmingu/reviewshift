@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -10,16 +10,26 @@ from backend.app.core.database import get_db
 from backend.app.schemas.catalog import (
     CategoryListResponse,
     ComparisonResponse,
+    EvaluationItemResponse,
+    EvaluationProgressResponse,
+    EvaluationSaveRequest,
     HealthResponse,
     ProductDetail,
     ProductListResponse,
     ReviewListResponse,
+    TranslationResponse,
 )
 from backend.app.services.catalog import (
     AnalysisRunUnavailableError,
     CatalogService,
     ProductNotFoundError,
 )
+from backend.app.services.human_evaluation import (
+    EvaluationNotFoundError,
+    EvaluationValidationError,
+    HumanEvaluationService,
+)
+from backend.app.services.review_translation import TranslationError
 
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db)]
@@ -38,6 +48,78 @@ def _not_found(product_id: str) -> HTTPException:
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f"product not found: {product_id}",
     )
+
+
+def _evaluation_service(session: Session) -> HumanEvaluationService:
+    return HumanEvaluationService(session)
+
+
+@router.get(
+    "/api/v1/evaluation/datasets/{dataset_id}/progress",
+    response_model=EvaluationProgressResponse,
+)
+def evaluation_progress(dataset_id: str, session: DbSession) -> EvaluationProgressResponse:
+    try:
+        return _evaluation_service(session).progress(dataset_id)
+    except EvaluationNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="평가 데이터셋을 찾을 수 없습니다.") from exc
+
+
+@router.get(
+    "/api/v1/evaluation/datasets/{dataset_id}/items/{position}",
+    response_model=EvaluationItemResponse,
+)
+def evaluation_item(
+    dataset_id: str, position: int, session: DbSession
+) -> EvaluationItemResponse:
+    try:
+        return _evaluation_service(session).item(dataset_id, position)
+    except EvaluationNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="평가 항목을 찾을 수 없습니다.") from exc
+
+
+@router.put(
+    "/api/v1/evaluation/datasets/{dataset_id}/items/{position}",
+    response_model=EvaluationItemResponse,
+)
+def save_evaluation_item(
+    dataset_id: str,
+    position: int,
+    payload: EvaluationSaveRequest,
+    session: DbSession,
+) -> EvaluationItemResponse:
+    try:
+        return _evaluation_service(session).save(dataset_id, position, payload)
+    except EvaluationNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="평가 항목을 찾을 수 없습니다.") from exc
+    except EvaluationValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/api/v1/evaluation/datasets/{dataset_id}/export")
+def export_evaluation(dataset_id: str, session: DbSession) -> Response:
+    try:
+        csv_text = _evaluation_service(session).export_csv(dataset_id)
+    except EvaluationNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="평가 데이터셋을 찾을 수 없습니다.") from exc
+    headers = {
+        "Content-Disposition": f'attachment; filename="{dataset_id}.csv"'
+    }
+    return Response(
+        content="\ufeff" + csv_text,
+        media_type="text/csv; charset=utf-8",
+        headers=headers,
+    )
+
+
+@router.post("/api/v1/reviews/{review_id}/translate", response_model=TranslationResponse)
+def translate_review(review_id: str, session: DbSession) -> TranslationResponse:
+    try:
+        return _evaluation_service(session).translate(review_id)
+    except EvaluationNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="리뷰를 찾을 수 없습니다.") from exc
+    except TranslationError as exc:
+        raise HTTPException(status_code=503, detail=f"번역 모델 처리 실패: {exc}") from exc
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -119,7 +201,9 @@ def reviews(
     session: DbSession,
     month: Month,
     aspect: str | None = Query(default=None, max_length=80),
-    polarity: str | None = Query(default=None, pattern=r"^(positive|negative|neutral)$"),
+    polarity: str | None = Query(
+        default=None, pattern=r"^(positive|negative|neutral|uncertain)$"
+    ),
     page: Page = 1,
     page_size: PageSize = 20,
 ) -> ReviewListResponse:

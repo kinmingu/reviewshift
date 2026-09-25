@@ -1,0 +1,214 @@
+{
+  "categories": {
+    "Electronics": {
+      "products": [
+        {
+          "parent_asin": "B08VD2NX25",
+          "title_ko": "사운드코어 라이프 Q30 하이브리드 액티브 노이즈 캔슬링 헤드폰",
+          "title_ko_source": "manual",
+          "description_ko": "다중 노이즈 캔슬링 모드, 앱 사용자 설정 이퀄라이저, 최대 40시간 재생과 멀티포인트 연결을 지원하는 블루투스 헤드폰입니다.",
+          "product_type": "헤드폰",
+          "months": ["2022-02", "2022-03", "2022-04"],
+          "monthly_counts": {
+            "2022-02": 123,
+            "2022-03": 126,
+            "2022-04": 124
+          }
+        },
+        {
+          "parent_asin": "B09M8N7YML",
+          "title_ko": "알로 에센셜 스포트라이트 무선 보안 카메라 3개 세트",
+          "title_ko_source": "manual",
+          "description_ko": "1080p 영상, 컬러 야간 촬영, 양방향 음성과 Wi-Fi 직접 연결을 지원하는 무선 보안 카메라 3개 세트입니다.",
+          "product_type": "보안 카메라",
+          "months": ["2022-07", "2022-08", "2022-09"],
+          "monthly_counts": {
+            "2022-07": 135,
+            "2022-08": 131,
+            "2022-09": 107
+          }
+        }
+      ]
+    },
+    "Beauty_and_Personal_Care": {
+      "products": [
+        {
+          "parent_asin": "B08YGYBQTZ",
+          "title_ko": "도루코 페이스 6 프로 6중날 면도기 세트",
+          "title_ko_source": "manual",
+          "description_ko": "정밀 트리머가 포함된 6중날 면도기 손잡이 1개와 교체용 카트리지 10개 구성입니다.",
+          "product_type": "면도기",
+          "months": ["2015-01", "2015-02", "2015-03"],
+          "monthly_counts": {
+            "2015-01": 120,
+            "2015-02": 127,
+            "2015-03": 125
+          }
+        },
+        {
+          "parent_asin": "B000FS05VG",
+          "title_ko": "레브론 1875W 고속 건조 경량 헤어드라이어",
+          "title_ko_source": "manual",
+          "description_ko": "3중 세라믹 열 분배와 이온 기술, 2단계 온도·풍속 설정을 제공하는 경량 헤어드라이어입니다.",
+          "product_type": "헤어드라이어",
+          "months": ["2015-06", "2015-07", "2015-08"],
+          "monthly_counts": {
+            "2015-06": 123,
+            "2015-07": 131,
+            "2015-08": 121
+          }
+        }
+      ]
+    },
+    "Cell_Phones_and_Accessories": {
+      "products": [
+        {
+          "parent_asin": "B07NZJ1MHX",
+          "title_ko": "삼성 갤럭시용 USB-C 고속 충전기·2m 케이블 2개 세트",
+          "title_ko_source": "manual",
+          "description_ko": "삼성 갤럭시 스마트폰용 USB-C 고속 충전 어댑터와 2m 케이블 2개 세트입니다.",
+          "product_type": "휴대폰 충전기",
+          "months": ["2020-10", "2020-11", "2020-12"],
+          "monthly_counts": {
+            "2020-10": 120,
+            "2020-11": 116,
+            "2020-12": 137
+          }
+        },
+        {
+          "parent_asin": "B08DQGH9T1",
+          "title_ko": "슈피겐 아이폰 12 프로 맥스 강화유리 보호필름 2개 세트",
+          "title_ko_source": "manual",
+          "description_ko": "자동 정렬 설치 도구가 포함된 아이폰 12 프로 맥스용 9H 강화유리 보호필름 2개 세트입니다.",
+          "product_type": "화면 보호필름",
+          "months": ["2021-06", "2021-07", "2021-08"],
+          "monthly_counts": {
+            "2021-06": 127,
+            "2021-07": 131,
+            "2021-08": 113
+          }
+        }
+      ]
+    },
+    "Sports_and_Outdoors": {
+      "products": [
+        {
+          "parent_asin": "B07FC9NRRR",
+          "title_ko": "애셔 USB 충전식 자전거 전조등·후미등 세트",
+          "title_ko_source": "manual",
+          "description_ko": "네 가지 조명 모드를 지원하며 별도 도구 없이 설치할 수 있는 USB 충전식 자전거 전조등·후미등 세트입니다.",
+          "product_type": "자전거 조명",
+          "months": ["2020-09", "2020-10", "2020-11"],
+          "monthly_counts": {
+            "2020-09": 116,
+            "2020-10": 132,
+            "2020-11": 126
+          }
+        },
+        {
+          "parent_asin": "B0764PP6R8",
+          "title_ko": "블랙 마운틴 운동용 스태빌리티 볼·펌프 세트",
+          "title_ko_source": "manual",
+          "description_ko": "운동과 스트레칭에 사용하는 고강도 밸런스 볼로 공기 주입 펌프가 포함됩니다.",
+          "product_type": "운동용 밸런스 볼",
+          "months": ["2016-12", "2017-01", "2017-02"],
+          "monthly_counts": {
+            "2016-12": 101,
+            "2017-01": 139,
+            "2017-02": 133
+          }
+        }
+      ]
+    },
+    "Toys_and_Games": {
+      "products": [
+        {
+          "parent_asin": "B087H2LWWZ",
+          "title_ko": "플레이스쿨 싯 앤 스핀 유아용 회전 놀이기구",
+          "title_ko_source": "manual",
+          "description_ko": "18개월 이상 유아가 손잡이를 밀고 당겨 회전 속도를 조절하며 균형감과 운동 능력을 익히는 놀이기구입니다.",
+          "product_type": "유아 회전 놀이기구",
+          "months": ["2021-12", "2022-01", "2022-02"],
+          "monthly_counts": {
+            "2021-12": 140,
+            "2022-01": 166,
+            "2022-02": 67
+          }
+        },
+        {
+          "parent_asin": "B00HT5HBMO",
+          "title_ko": "러닝 리소시스 녹음형 정답 버저 4개 세트",
+          "title_ko_source": "manual",
+          "description_ko": "각 버튼에 최대 7초의 소리를 녹음할 수 있어 수업, 퀴즈와 가족 게임에 사용할 수 있는 버저 4개 세트입니다.",
+          "product_type": "교육용 녹음 버저",
+          "months": ["2021-04", "2021-05", "2021-06"],
+          "monthly_counts": {
+            "2021-04": 132,
+            "2021-05": 130,
+            "2021-06": 111
+          }
+        }
+      ]
+    },
+    "Home_and_Kitchen": {
+      "products": [
+        {
+          "parent_asin": "B0CFTCTHTK",
+          "title_ko": "임프레사 커피머신 범용 석회 제거제 2병 세트",
+          "title_ko_source": "manual",
+          "description_ko": "큐리그, 네스프레소, 드롱기 등 커피·에스프레소 머신의 물때와 석회를 제거하는 미국산 세정제 2병 세트입니다.",
+          "product_type": "커피머신 세정제",
+          "months": ["2021-10", "2021-11", "2021-12"],
+          "monthly_counts": {
+            "2021-10": 123,
+            "2021-11": 124,
+            "2021-12": 127
+          }
+        },
+        {
+          "parent_asin": "B0BWLH7QX5",
+          "title_ko": "이지고잉 신축성 1인용 소파 커버",
+          "title_ko_source": "manual",
+          "description_ko": "폴리에스터·스판 혼방 소재로 제작된 짙은 회색 1인용 소파 보호 커버입니다.",
+          "product_type": "소파 커버",
+          "months": ["2022-11", "2022-12", "2023-01"],
+          "monthly_counts": {
+            "2022-11": 122,
+            "2022-12": 128,
+            "2023-01": 125
+          }
+        }
+      ]
+    },
+    "Health_and_Household": {
+      "products": [
+        {
+          "parent_asin": "B01EX2IAZM",
+          "title_ko": "스콧 1000시트 화장지 12롤",
+          "title_ko_source": "manual",
+          "description_ko": "롤당 1,000시트로 구성된 1겹 화장지 12롤 세트이며 하수·정화조와 RV 사용에 적합합니다.",
+          "product_type": "화장지",
+          "months": ["2021-01", "2021-02", "2021-03"],
+          "monthly_counts": {
+            "2021-01": 130,
+            "2021-02": 122,
+            "2021-03": 122
+          }
+        },
+        {
+          "parent_asin": "B0B7LC848X",
+          "title_ko": "시츠 런드리 클럽 친환경 세탁세제 시트 200매",
+          "title_ko_source": "manual",
+          "description_ko": "민감한 피부에 사용할 수 있는 리넨 향 세탁세제 시트 200매로 최대 400회 세탁용 제품입니다.",
+          "product_type": "세탁세제 시트",
+          "months": ["2021-05", "2021-06", "2021-07"],
+          "monthly_counts": {
+            "2021-05": 116,
+            "2021-06": 135,
+            "2021-07": 122
+          }
+        }
+      ]
+    }
+  }
+}

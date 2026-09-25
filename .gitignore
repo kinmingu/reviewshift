@@ -13,11 +13,11 @@ htmlcov/
 !.env.example
 
 # Local datasets, model files, and generated artifacts
-data/
-models/
-artifacts/
-downloads/
-postgres-data/
+/data/
+/models/
+/artifacts/
+/downloads/
+/postgres-data/
 *.jsonl
 *.jsonl.gz
 *.parquet

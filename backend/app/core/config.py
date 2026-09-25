@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     database_url: str
     source_mode: str = "fixture"
+    analysis_min_review_count: int = 30
+    analysis_min_negative_count: int = 5
+    analysis_min_increase_pp: float = 10.0
+    ollama_base_url: str = "http://127.0.0.1:11434"
+    ollama_model: str = "qwen3.5:latest"
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
@@ -23,4 +28,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]
-

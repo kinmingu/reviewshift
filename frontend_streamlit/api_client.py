@@ -32,6 +32,19 @@ class ReviewShiftClient:
             raise ApiError(f"API에 연결할 수 없습니다: {exc}") from exc
         return response.json()
 
+    def _request_json(
+        self, method: str, path: str, json_body: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        try:
+            response = self._client.request(method, path, json=json_body)
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text
+            raise ApiError(f"API 오류 ({exc.response.status_code}): {detail}") from exc
+        except httpx.HTTPError as exc:
+            raise ApiError(f"API에 연결할 수 없습니다: {exc}") from exc
+        return response.json()
+
     def health(self) -> dict[str, Any]:
         return self._get("/health")
 
@@ -72,3 +85,48 @@ class ReviewShiftClient:
         if polarity:
             params["polarity"] = polarity
         return self._get(f"/api/v1/products/{product_id}/reviews", params)
+
+    def evaluation_progress(self, dataset_id: str) -> dict[str, Any]:
+        return self._get(f"/api/v1/evaluation/datasets/{dataset_id}/progress")
+
+    def evaluation_item(self, dataset_id: str, position: int) -> dict[str, Any]:
+        return self._get(
+            f"/api/v1/evaluation/datasets/{dataset_id}/items/{position}"
+        )
+
+    def save_evaluation(
+        self, dataset_id: str, position: int, payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self._request_json(
+            "PUT",
+            f"/api/v1/evaluation/datasets/{dataset_id}/items/{position}",
+            payload,
+        )
+
+    def translate_review(self, review_id: str) -> dict[str, Any]:
+        try:
+            response = self._client.post(
+                f"/api/v1/reviews/{review_id}/translate", timeout=310.0
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise ApiError(
+                f"API 오류 ({exc.response.status_code}): {exc.response.text}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ApiError(f"API에 연결할 수 없습니다: {exc}") from exc
+        return response.json()
+
+    def evaluation_export(self, dataset_id: str) -> bytes:
+        try:
+            response = self._client.get(
+                f"/api/v1/evaluation/datasets/{dataset_id}/export"
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise ApiError(
+                f"API 오류 ({exc.response.status_code}): {exc.response.text}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ApiError(f"API에 연결할 수 없습니다: {exc}") from exc
+        return response.content

@@ -6,7 +6,14 @@ from datetime import datetime
 from sqlalchemy import Select, distinct, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from backend.app.models import AnalysisRun, Product, Review, ReviewLabel
+from backend.app.core.categories import REAL_CATEGORY_KEYS
+from backend.app.models import (
+    AnalysisRun,
+    Product,
+    Review,
+    ReviewAnalysisResult,
+    ReviewLabel,
+)
 
 
 @dataclass(frozen=True)
@@ -23,6 +30,15 @@ class MonthlyReviewAggregate:
     month: str
     review_count: int
     average_rating: float
+
+
+@dataclass(frozen=True)
+class AnalysisCoverageAggregate:
+    total: int
+    succeeded: int
+    failed: int
+    in_progress: int
+    labeled: int
 
 
 class ProductRepository:
@@ -49,9 +65,19 @@ class ProductRepository:
         page_size: int,
     ) -> tuple[list[Product], int]:
         filters = [Product.source_mode == source_mode]
+        # 기존 Appliances 데이터는 보존하지만, 공식 7개 카테고리 기본 목록(14개 목표)에는 섞지 않습니다.
+        if source_mode == "real" and not category:
+            filters.append(Product.category.in_(REAL_CATEGORY_KEYS))
         if query:
             pattern = f"%{query.strip()}%"
-            filters.append(or_(Product.title.ilike(pattern), Product.parent_asin.ilike(pattern)))
+            # 원문명은 그대로 보존하고, 별도 메타데이터의 한국어 표시명도 같은 검색창에서 찾습니다.
+            filters.append(
+                or_(
+                    Product.title.ilike(pattern),
+                    Product.metadata_json["title_ko"].as_string().ilike(pattern),
+                    Product.parent_asin.ilike(pattern),
+                )
+            )
         if category:
             filters.append(Product.category == category)
 
@@ -146,6 +172,37 @@ class ReviewRepository:
             or 0
         )
 
+    def analysis_coverage(
+        self,
+        product_id: str,
+        start: datetime,
+        end: datetime,
+        run_id: str,
+    ) -> AnalysisCoverageAggregate:
+        total = self.count_eligible(product_id, start, end)
+        status_rows = dict(
+            self.session.execute(
+                select(ReviewAnalysisResult.status, func.count(ReviewAnalysisResult.id))
+                .join(Review, Review.id == ReviewAnalysisResult.review_id)
+                .where(
+                    Review.product_id == product_id,
+                    Review.eligible.is_(True),
+                    Review.reviewed_at >= start,
+                    Review.reviewed_at < end,
+                    ReviewAnalysisResult.run_id == run_id,
+                )
+                .group_by(ReviewAnalysisResult.status)
+            ).all()
+        )
+        return AnalysisCoverageAggregate(
+            total=total,
+            succeeded=int(status_rows.get("succeeded", 0)),
+            failed=int(status_rows.get("failed", 0)),
+            in_progress=int(status_rows.get("pending", 0))
+            + int(status_rows.get("running", 0)),
+            labeled=self.count_labeled(product_id, start, end, run_id),
+        )
+
     def label_aggregates(
         self, product_id: str, start: datetime, end: datetime, run_id: str
     ) -> list[LabelAggregate]:
@@ -158,12 +215,18 @@ class ReviewRepository:
                 func.array_agg(distinct(Review.id)),
             )
             .join(Review, Review.id == ReviewLabel.review_id)
+            .join(
+                ReviewAnalysisResult,
+                (ReviewAnalysisResult.review_id == Review.id)
+                & (ReviewAnalysisResult.run_id == ReviewLabel.run_id),
+            )
             .where(
                 Review.product_id == product_id,
                 Review.eligible.is_(True),
                 Review.reviewed_at >= start,
                 Review.reviewed_at < end,
                 ReviewLabel.run_id == run_id,
+                ReviewAnalysisResult.status == "succeeded",
             )
             .group_by(
                 ReviewLabel.aspect, ReviewLabel.detail_label, ReviewLabel.polarity
@@ -188,6 +251,7 @@ class ReviewRepository:
         end: datetime,
         aspect: str | None,
         polarity: str | None,
+        run_id: str | None,
         page: int,
         page_size: int,
     ) -> tuple[list[Review], int]:
@@ -198,7 +262,10 @@ class ReviewRepository:
             Review.reviewed_at < end,
         )
         if aspect or polarity:
+            if run_id is None:
+                return [], 0
             query = query.join(ReviewLabel, ReviewLabel.review_id == Review.id)
+            query = query.where(ReviewLabel.run_id == run_id)
             if aspect:
                 query = query.where(ReviewLabel.aspect == aspect)
             if polarity:
@@ -213,7 +280,10 @@ class ReviewRepository:
         )
         items = list(
             self.session.scalars(
-                query.options(selectinload(Review.labels).selectinload(ReviewLabel.run))
+                query.options(
+                    selectinload(Review.labels).selectinload(ReviewLabel.run),
+                    selectinload(Review.analysis_results),
+                )
                 .order_by(Review.reviewed_at.desc(), Review.id)
                 .offset((page - 1) * page_size)
                 .limit(page_size)
@@ -226,10 +296,13 @@ class AnalysisRunRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def latest_completed(self) -> AnalysisRun | None:
+    def active(self, source_mode: str) -> AnalysisRun | None:
         return self.session.scalar(
             select(AnalysisRun)
-            .where(AnalysisRun.status == "completed")
+            .where(
+                AnalysisRun.source_mode == source_mode,
+                AnalysisRun.is_active.is_(True),
+            )
             .order_by(AnalysisRun.created_at.desc(), AnalysisRun.id.desc())
             .limit(1)
         )

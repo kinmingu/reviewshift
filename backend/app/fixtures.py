@@ -3,7 +3,14 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from backend.app.models import AnalysisRun, Product, Review, ReviewLabel
+from backend.app.models import (
+    AnalysisRun,
+    Product,
+    Review,
+    ReviewAnalysisResult,
+    ReviewLabel,
+)
+from backend.app.services.review_classification import review_input_hash
 
 FIXTURE_RUN_ID = "fixture-analysis-v1"
 FIXTURE_DATA_VERSION = "fixture-2026-09-v1"
@@ -114,6 +121,10 @@ def seed_fixtures(session: Session) -> dict[str, int]:
             model="deterministic-fixture-labels",
             prompt_version="not-applicable",
             label_schema_version="fixture-label-schema-v1",
+            source_mode="fixture",
+            is_active=True,
+            target_review_count=len(REVIEWS),
+            config_json={"fixture": True},
             status="completed",
         )
     )
@@ -138,6 +149,22 @@ def seed_fixtures(session: Session) -> dict[str, int]:
 
     label_count = 0
     for fixture in REVIEWS:
+        session.merge(
+            ReviewAnalysisResult(
+                id=f"fixture-result:{fixture.id}",
+                run_id=FIXTURE_RUN_ID,
+                review_id=fixture.id,
+                input_hash=review_input_hash(fixture.title, fixture.text),
+                status="succeeded",
+                attempt_count=1,
+                input_chars=len(fixture.title) + len(fixture.text),
+                duration_ms=0,
+                error_history=[],
+                raw_response='{"source":"deterministic-fixture"}',
+                started_at=fixture.reviewed_at,
+                completed_at=fixture.reviewed_at,
+            )
+        )
         for index, (aspect, detail, polarity, evidence) in enumerate(fixture.labels, start=1):
             session.merge(
                 ReviewLabel(
@@ -153,4 +180,3 @@ def seed_fixtures(session: Session) -> dict[str, int]:
             label_count += 1
     session.commit()
     return {"products": len(PRODUCTS), "reviews": len(REVIEWS), "labels": label_count}
-

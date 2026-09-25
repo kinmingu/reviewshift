@@ -17,6 +17,47 @@ def test_categories_are_fixture_labeled(client: TestClient) -> None:
     }
 
 
+def test_real_categories_include_all_seven_official_targets(client: TestClient) -> None:
+    response = client.get("/api/v1/categories", params={"source_mode": "real"})
+    assert response.status_code == 200
+    assert response.json()["items"][:7] == [
+        "Electronics",
+        "Beauty_and_Personal_Care",
+        "Cell_Phones_and_Accessories",
+        "Home_and_Kitchen",
+        "Sports_and_Outdoors",
+        "Toys_and_Games",
+        "Health_and_Household",
+    ]
+    assert "Appliances" not in response.json()["items"]
+
+
+def test_default_real_catalog_has_two_products_per_official_category(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/api/v1/products", params={"source_mode": "real", "page_size": 100}
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 14
+    assert len(payload["items"]) == 14
+    assert all(item["title_ko"] for item in payload["items"])
+
+    counts: dict[str, int] = {}
+    for item in payload["items"]:
+        counts[item["category"]] = counts.get(item["category"], 0) + 1
+    assert counts == {
+        "Electronics": 2,
+        "Beauty_and_Personal_Care": 2,
+        "Cell_Phones_and_Accessories": 2,
+        "Home_and_Kitchen": 2,
+        "Sports_and_Outdoors": 2,
+        "Toys_and_Games": 2,
+        "Health_and_Household": 2,
+    }
+
+
 def test_product_search_and_category_filter(client: TestClient) -> None:
     all_products = client.get("/api/v1/products", params={"page": 1, "page_size": 2})
     assert all_products.status_code == 200
@@ -77,14 +118,16 @@ def test_comparison_is_aggregated_from_distinct_reviews(client: TestClient) -> N
     payload = response.json()
     assert payload["source_mode"] == "fixture"
     assert payload["status"] == "ok"
-    assert payload["coverage"] == {
-        "target_total": 6,
-        "target_labeled": 6,
-        "baseline_total": 6,
-        "baseline_labeled": 6,
-        "target_average_rating": pytest.approx(17 / 6),
-        "baseline_average_rating": pytest.approx(4.0),
-    }
+    coverage = payload["coverage"]
+    assert coverage["target_total"] == 6
+    assert coverage["target_labeled"] == 6
+    assert coverage["baseline_total"] == 6
+    assert coverage["baseline_labeled"] == 6
+    assert coverage["target_average_rating"] == pytest.approx(17 / 6)
+    assert coverage["baseline_average_rating"] == pytest.approx(4.0)
+    assert coverage["target_succeeded"] == 6
+    assert coverage["target_processing_rate"] == 1.0
+    assert coverage["target_analysis_status"] == "complete"
 
     leak = _issue(payload, "reliability", "carafe leak", "negative")
     assert leak["target_count"] == 3
@@ -145,7 +188,10 @@ def test_review_filter_returns_original_evidence(client: TestClient) -> None:
 
 
 def test_real_products_are_separate_and_unclassified(client: TestClient) -> None:
-    response = client.get("/api/v1/products", params={"source_mode": "real"})
+    response = client.get(
+        "/api/v1/products",
+        params={"source_mode": "real", "category": "Appliances"},
+    )
     assert response.status_code == 200
     payload = response.json()
     expected_ids = {
@@ -180,3 +226,57 @@ def test_real_products_are_separate_and_unclassified(client: TestClient) -> None
     assert comparison["analysis_version"] == "not-analyzed"
     assert comparison["coverage"]["target_labeled"] == 0
     assert comparison["coverage"]["target_average_rating"] is not None
+
+
+def test_electronics_product_can_be_searched_by_korean_display_name(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/api/v1/products", params={"source_mode": "real", "query": "사운드코어"}
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 1
+    assert payload["items"][0]["id"] == "amazon-B08VD2NX25"
+    assert payload["items"][0]["title_ko"].startswith("사운드코어 라이프 Q30")
+    assert payload["items"][0]["review_count"] == 373
+    assert payload["items"][0]["source_average_rating"] == pytest.approx(4.5)
+    assert payload["items"][0]["source_rating_count"] == 50896
+
+
+def test_real_product_keeps_korean_summary_and_original_review_source(
+    client: TestClient,
+) -> None:
+    detail = client.get("/api/v1/products/amazon-B01EX2IAZM")
+    assert detail.status_code == 200
+    payload = detail.json()
+    assert payload["title_ko"] == "스콧 1000시트 화장지 12롤"
+    assert payload["metadata"]["description_ko"]
+
+    reviews = client.get(
+        "/api/v1/products/amazon-B01EX2IAZM/reviews",
+        params={"month": "2021-01", "page_size": 1},
+    )
+    assert reviews.status_code == 200
+    review = reviews.json()["items"][0]
+    assert review["source_mode"] == "real"
+    assert review["analysis_status"] in {
+        "not_started",
+        "pending",
+        "running",
+        "succeeded",
+        "failed",
+    }
+    assert all(
+        label["evidence_span"] in f"{review['title'] or ''}\n{review['text']}"
+        for label in review["labels"]
+    )
+    assert {
+        "title",
+        "text",
+        "title_ko",
+        "text_ko",
+        "translation_model",
+        "translation_prompt_version",
+        "translated_at",
+    } <= review.keys()

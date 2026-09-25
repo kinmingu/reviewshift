@@ -5,6 +5,10 @@
   "products": [
     {
       "parent_asin": "B0B3DB5HTC",
+      "title_ko": "K&J 큐리그 커피머신 교체용 필터 12개 세트",
+      "title_ko_source": "manual",
+      "description_ko": "큐리그 2.0 및 이전 모델과 호환되는 교체용 정수 필터 12개 세트입니다.",
+      "product_type": "커피머신 필터",
       "baseline_month": "2020-04",
       "target_month": "2020-05",
       "import_start_month": "2019-06",
@@ -26,6 +30,10 @@
     },
     {
       "parent_asin": "B0C57WMPJQ",
+      "title_ko": "실론 탁상용 자동 세척 제빙기",
+      "title_ko_source": "manual",
+      "description_ko": "6분 단위로 얼음 9개를 만들고 하루 최대 26파운드 생산이 가능한 탁상용 제빙기입니다.",
+      "product_type": "제빙기",
       "baseline_month": "2022-07",
       "target_month": "2022-08",
       "import_start_month": "2021-09",
@@ -47,6 +55,10 @@
     },
     {
       "parent_asin": "B07WTXWC32",
+      "title_ko": "린다스 에센셜 실리콘 가스레인지 틈새 덮개 2개 세트",
+      "title_ko_source": "manual",
+      "description_ko": "가스레인지와 조리대 사이 틈을 막는 25인치 내열 실리콘 덮개입니다.",
+      "product_type": "주방 틈새 덮개",
       "baseline_month": "2021-03",
       "target_month": "2021-04",
       "import_start_month": "2020-05",

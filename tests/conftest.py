@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from backend.app.core.database import SessionLocal
 from backend.app.fixtures import seed_fixtures
 from backend.app.main import app
+from scripts.seed_human_evaluation import seed as seed_human_evaluation
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -23,6 +24,7 @@ def prepared_database() -> Generator[None, None, None]:
     command.upgrade(config, "head")
     with SessionLocal() as session:
         seed_fixtures(session)
+    seed_human_evaluation()
     yield
 
 

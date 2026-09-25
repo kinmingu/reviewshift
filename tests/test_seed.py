@@ -1,7 +1,7 @@
 from sqlalchemy import func, select
 
 from backend.app.core.database import SessionLocal
-from backend.app.fixtures import seed_fixtures
+from backend.app.fixtures import FIXTURE_RUN_ID, seed_fixtures
 from backend.app.models import Product, Review, ReviewLabel
 
 
@@ -20,7 +20,14 @@ def _counts() -> tuple[int, int, int]:
                 )
                 or 0
             ),
-            int(session.scalar(select(func.count(ReviewLabel.id))) or 0),
+            int(
+                session.scalar(
+                    select(func.count(ReviewLabel.id)).where(
+                        ReviewLabel.run_id == FIXTURE_RUN_ID
+                    )
+                )
+                or 0
+            ),
         )
 
 

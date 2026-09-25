@@ -12,18 +12,25 @@ API와 DB 연결 상태를 반환한다.
 
 - `source_mode`: `fixture|real`, 생략 시 서버 기본값
 
-선택한 출처에 존재하는 카테고리만 반환한다.
+`source_mode=real`은 프로젝트 대상으로 확정한 공식 7개 카테고리를 고정 순서로 반환한다.
+기존 검증용 `Appliances` 데이터는 보존하지만 이 기본 카테고리 목록에는 포함하지 않는다.
 
 ## GET `/api/v1/products`
 
 쿼리:
 
-- `query`: 상품명 또는 parent_asin 부분 검색
+- `query`: 원문 상품명, 별도 한국어 표시 상품명 또는 parent_asin 부분 검색
 - `category`: 정확한 카테고리
 - `source_mode`: `fixture|real`, 생략 시 서버 기본값
 - `page`, `page_size`
 
 fixture와 실제 데이터는 한 목록에서 섞이지 않는다.
+실제 데이터에서 카테고리를 생략하면 공식 7개 카테고리의 14개 상품만 반환한다. 기존
+`Appliances` 3개는 `category=Appliances`를 명시했을 때 조회할 수 있다.
+상품 항목의 `title`은 원문 상품명이고 `title_ko`는 별도로 준비된 한국어 표시명 또는 `null`이다.
+`review_count`는 해당 제품에 실제 저장된 적격·중복 제거 리뷰 수다.
+`source_average_rating`과 `source_rating_count`는 Amazon 원천 상품 메타데이터의 평균 평점과
+평점 등록 수다. `source_rating_count`는 실제 구매 수나 판매량으로 해석하지 않는다.
 
 ## GET `/api/v1/products/{product_id}`
 
@@ -41,7 +48,12 @@ fixture와 실제 데이터는 한 목록에서 섞이지 않는다.
 - `aspect`, `polarity`: fixture 분류 결과 필터(선택)
 - `page`, `page_size`
 
-실제 리뷰는 `labels: []`로 반환한다. 이는 불만 0건이나 정상 판정이 아니라 아직 분류하지 않았다는 뜻이다.
+리뷰는 활성 분석 버전의 `labels`와 `analysis_status`를 반환한다. `analysis_status=succeeded`인데
+`labels: []`인 경우는 모델 호출이 정상 완료됐으나 명시적으로 분류할 항목이 없다는 뜻이다.
+`not_started`, `pending`, `running`, `failed`를 0건 불만이나 정상 판정으로 해석하지 않는다.
+영어 원문은 `title`, `text`에 항상 보존한다. 자동 번역이 완료된 리뷰는 `title_ko`,
+`text_ko`, `translation_model`, `translation_prompt_version`, `translated_at`을 함께 반환하고,
+미번역 리뷰의 해당 필드는 `null`이다. 번역문을 원문 인용으로 취급하지 않는다.
 
 ## GET `/api/v1/products/{product_id}/comparison`
 
@@ -49,5 +61,33 @@ fixture와 실제 데이터는 한 목록에서 섞이지 않는다.
 
 - `target_month`, `baseline_month`: 필수 `YYYY-MM`
 
-`coverage`에는 두 월의 리뷰 수, 분류된 리뷰 수, 평균 별점이 포함된다. 실제 상품은 현재 `status: insufficient_data`, `issues: []`, `analysis_version: not-analyzed`를 반환한다. 실제 리뷰의 수와 평균 별점은 DB에서 계산하지만 항목별 불만률은 분류 전이므로 만들지 않는다.
+`coverage`에는 두 월별 전체 리뷰, 라벨이 하나 이상인 리뷰, 성공·실패·진행 중·미처리 수,
+성공 처리율, 평균 별점과 분석 상태가 포함된다. 성공에는 정상 빈 라벨 결과도 포함한다.
 
+`issues`의 비율 분모는 전체 리뷰가 아니라 해당 월의 분류 성공 리뷰 수다. 동일 리뷰의 동일
+항목·감성은 근거가 여러 개여도 SQL에서 한 번만 센다. 두 월 중 하나라도 완료 전이면
+`is_provisional=true`, `signal_status=analysis_incomplete`이며 처리율을 함께 확인해야 한다.
+미처리·실패 리뷰는 불만 없는 리뷰로 계산하지 않는다.
+
+두 기간이 모두 완료된 경우에만 설정된 최소 성공 리뷰 수·최소 부정 건수·최소 증가 폭으로
+`increase_signal` 또는 `no_increase_signal`을 반환한다. 이는 통계적 유의성 검정이 아니다.
+비교 기간의 데이터 또는 성공 분모가 없으면 비율·변화폭은 `null`이며 0으로 대체하지 않는다.
+
+응답의 `analysis_version`, `model`, `prompt_version`, `label_schema_version`은 실제 집계에 사용한
+활성 버전을 나타낸다. 새 실행을 활성화해도 이전 버전 결과는 보존하지만 함께 집계하지 않는다.
+
+## 사람 검토 API
+
+일반 사용자 화면과 분리된 개발·평가 화면만 사용한다.
+
+- `GET /api/v1/evaluation/datasets/{dataset_id}/progress`: 완료·미완료 수와 다음 위치
+- `GET /api/v1/evaluation/datasets/{dataset_id}/items/{position}`: 원문, 캐시 번역, taxonomy,
+  저장된 사람 정답. 모델 예측은 정답이 `completed`가 되기 전에는 반환하지 않는다.
+- `PUT /api/v1/evaluation/datasets/{dataset_id}/items/{position}`: 진행 중 또는 완료 정답 저장.
+  다중 항목, 같은 항목의 긍정·부정 동시 저장, `uncertain`, 명시적 정상 빈 라벨을 지원한다.
+- `GET /api/v1/evaluation/datasets/{dataset_id}/export`: 기존 `gold_labels_json` CSV 형식으로 내보낸다.
+- `POST /api/v1/reviews/{review_id}/translate`: 해당 리뷰 한 건만 자동 번역하고 캐시한다.
+
+완료 정답의 근거 구간은 리뷰 제목 또는 본문에 실제 존재해야 한다. 정상 빈 라벨과 항목 라벨은
+동시에 저장할 수 없고, 완료에는 검토자 이름이 필요하다. 자동 번역은 참고 자료이며 정답이나
+영문 원문 인용을 대신하지 않는다.

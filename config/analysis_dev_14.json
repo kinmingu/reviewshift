@@ -1,0 +1,29 @@
+{
+  "version": "analysis-dev-14-v1",
+  "source_set": "trial_70",
+  "independent_evaluation": false,
+  "selection_note": "프롬프트 개선용 고정 집합이다. 독립 평가 정확도 산출에 사용하지 않는다.",
+  "review_ids": [
+    "amazon-01696d3e4be9d2347b61bcb534bca9a0c3f4f98d",
+    "amazon-db44c140702afd0fe0f00cd0c8abe40839544919",
+    "amazon-663da392d8ef8b470ba05a4dff20e5f2f4a444a5",
+    "amazon-41ef353292e53740e7a2b694202321c9c25f1743",
+    "amazon-a617fe98de73ab71a396efe64d8f2f73113f11f1",
+    "amazon-a634157ce545e5fed9bff5d58b5f481c5ab90c05",
+    "amazon-d3c6fa813dd896bbe23c1b0aaa46990c0305e7f9",
+    "amazon-77183b9c53292f2da8c1a7be557e5772c58d24ae",
+    "amazon-90677895d8388dd600b79cc1cab4ef1502a526ca",
+    "amazon-0f3d0b050e3b42867ae02a28428d12c16f37cc6b",
+    "amazon-f13c39ff3dd3569a3badbe7dc1fc749407845929",
+    "amazon-0aee1ad164a890e286a01575a0af6ba3d99071d2",
+    "amazon-56d248a59a96de6dcd3a8c2039a85a1c666797ce",
+    "amazon-f335d17ff61d9eb69555ae6ec8a77f8a7d991070"
+  ],
+  "focus": [
+    "의심·실패 6건",
+    "짧은 일반 호평과 정상 빈 라벨 후보",
+    "부정어와 혼합 감성",
+    "20~738자 입력 길이",
+    "7개 카테고리"
+  ]
+}

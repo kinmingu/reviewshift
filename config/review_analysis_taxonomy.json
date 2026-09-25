@@ -1,0 +1,108 @@
+{
+  "version": "review-taxonomy-v1",
+  "polarities": ["positive", "negative", "neutral", "uncertain"],
+  "common": [
+    {
+      "aspect_code": "performance",
+      "aspect_name_ko": "성능",
+      "details": [
+        {"detail_code": "core_performance", "name_ko": "핵심 성능", "include": "제품의 주 기능 수행 결과", "exclude": "배송 속도와 판매자 서비스", "example": "Works quickly and well"},
+        {"detail_code": "reliability", "name_ko": "신뢰성·고장", "include": "고장, 누수, 오작동, 지속성", "exclude": "고장 나지 않았다는 명시적 부정 표현을 고장 불만으로 처리하지 않음", "example": "Stopped working after a week"},
+        {"detail_code": "compatibility", "name_ko": "호환성", "include": "명시한 기기·용도와의 호환", "exclude": "단순 크기 취향", "example": "Does not work with my phone"}
+      ]
+    },
+    {
+      "aspect_code": "usability",
+      "aspect_name_ko": "사용성",
+      "details": [
+        {"detail_code": "setup_installation", "name_ko": "설치·초기 설정", "include": "조립, 부착, 연결, 초기 설정", "exclude": "배송 중 파손", "example": "Easy to install"},
+        {"detail_code": "controls_operation", "name_ko": "조작", "include": "버튼, 앱, 사용 절차와 조작 편의", "exclude": "핵심 성능 결과", "example": "The controls are confusing"},
+        {"detail_code": "cleaning_maintenance", "name_ko": "청소·관리", "include": "세척, 관리, 보관", "exclude": "세정 제품 자체의 세정력", "example": "Easy to clean"}
+      ]
+    },
+    {
+      "aspect_code": "design",
+      "aspect_name_ko": "설계·외형",
+      "details": [
+        {"detail_code": "build_material", "name_ko": "마감·소재", "include": "내구감, 재질, 마감", "exclude": "배송 포장재", "example": "Feels cheaply made"},
+        {"detail_code": "size_fit", "name_ko": "크기·맞음새", "include": "크기, 무게, 착용감, 맞음새", "exclude": "다른 기기와의 기술적 호환", "example": "Fits perfectly"},
+        {"detail_code": "appearance", "name_ko": "외관", "include": "색상, 모양, 시각적 디자인", "exclude": "성능", "example": "Looks great on the counter"}
+      ]
+    },
+    {
+      "aspect_code": "value",
+      "aspect_name_ko": "가격·가치",
+      "details": [
+        {"detail_code": "price_value", "name_ko": "가격 대비 가치", "include": "가격, 가성비, 돈 낭비", "exclude": "판매자 환불 응대", "example": "Good value for the price"}
+      ]
+    },
+    {
+      "aspect_code": "service",
+      "aspect_name_ko": "배송·판매 서비스",
+      "details": [
+        {"detail_code": "shipping", "name_ko": "배송", "include": "배송 속도와 배송 과정", "exclude": "제품 자체 성능", "example": "Arrived late"},
+        {"detail_code": "packaging", "name_ko": "포장", "include": "포장 상태와 운송 중 포장 손상", "exclude": "제품 소재", "example": "The box was crushed"},
+        {"detail_code": "seller_service", "name_ko": "판매자 서비스", "include": "환불, 교환, 판매자 응대", "exclude": "제품 조작 편의", "example": "Seller replaced it quickly"}
+      ]
+    }
+  ],
+  "categories": {
+    "Electronics": [
+      {"aspect_code": "audio_video", "aspect_name_ko": "음향·영상", "details": [
+        {"detail_code": "sound_quality", "name_ko": "음질", "include": "소리의 선명도·균형", "exclude": "주변 소음 차단", "example": "Clear sound"},
+        {"detail_code": "noise_control", "name_ko": "소음 제어", "include": "노이즈 캔슬링·주변 소음", "exclude": "제품에서 발생하는 고장 소음", "example": "Noise cancellation is weak"},
+        {"detail_code": "camera_video", "name_ko": "카메라·영상", "include": "화질, 야간 영상, 녹화", "exclude": "Wi-Fi 연결", "example": "Night video is sharp"}
+      ]},
+      {"aspect_code": "power_connection", "aspect_name_ko": "전원·연결", "details": [
+        {"detail_code": "battery_runtime", "name_ko": "배터리 지속 시간", "include": "충전 간 사용 시간", "exclude": "충전기 호환", "example": "Battery lasts all day"},
+        {"detail_code": "connectivity", "name_ko": "연결성", "include": "Bluetooth, Wi-Fi, 앱 연결", "exclude": "배송", "example": "Keeps disconnecting"}
+      ]}
+    ],
+    "Beauty_and_Personal_Care": [
+      {"aspect_code": "beauty_use", "aspect_name_ko": "미용 사용 경험", "details": [
+        {"detail_code": "shave_performance", "name_ko": "면도 성능", "include": "절삭, 밀착 면도", "exclude": "배송", "example": "Gives a close shave"},
+        {"detail_code": "hair_drying", "name_ko": "모발 건조", "include": "건조 속도와 결과", "exclude": "제품 외관", "example": "Dries my hair quickly"},
+        {"detail_code": "skin_comfort", "name_ko": "피부 편안함", "include": "자극, 베임, 사용감에 대한 개인 경험", "exclude": "의학적 효능 확정", "example": "Irritated my skin"},
+        {"detail_code": "heat_temperature", "name_ko": "열·온도", "include": "열 세기와 온도 조절", "exclude": "배송 중 열 손상", "example": "Gets too hot"}
+      ]}
+    ],
+    "Cell_Phones_and_Accessories": [
+      {"aspect_code": "mobile_accessory", "aspect_name_ko": "모바일 액세서리 기능", "details": [
+        {"detail_code": "charging", "name_ko": "충전", "include": "충전 속도와 안정성", "exclude": "배터리 자체 지속 시간", "example": "Charges very fast"},
+        {"detail_code": "cable", "name_ko": "케이블", "include": "케이블 길이·단선·커넥터", "exclude": "화면 보호", "example": "Cable frayed"},
+        {"detail_code": "screen_protection", "name_ko": "화면 보호", "include": "보호 성능, 기포, 긁힘", "exclude": "휴대폰 화면 자체 품질", "example": "Protected the screen from a drop"},
+        {"detail_code": "fit_alignment", "name_ko": "부착 정렬", "include": "정렬, 가장자리, 케이스 간섭", "exclude": "기술적 충전 호환", "example": "Does not align with the screen"}
+      ]}
+    ],
+    "Home_and_Kitchen": [
+      {"aspect_code": "home_use", "aspect_name_ko": "주방·생활 사용", "details": [
+        {"detail_code": "cleaning_effectiveness", "name_ko": "세정 효과", "include": "때·석회 제거 효과", "exclude": "제품을 청소하기 쉬운지", "example": "Removed all the scale"},
+        {"detail_code": "fabric_fit", "name_ko": "패브릭 맞음새", "include": "소파 등 대상에 씌운 맞음새와 고정", "exclude": "기술적 호환", "example": "Keeps slipping off the sofa"},
+        {"detail_code": "material_comfort", "name_ko": "소재 촉감", "include": "부드러움, 두께, 촉감", "exclude": "포장재", "example": "The fabric is soft"}
+      ]}
+    ],
+    "Sports_and_Outdoors": [
+      {"aspect_code": "sports_use", "aspect_name_ko": "스포츠 사용", "details": [
+        {"detail_code": "lighting_visibility", "name_ko": "조명·시인성", "include": "밝기, 가시성, 조명 모드", "exclude": "제품 외관 색상", "example": "Bright enough for night rides"},
+        {"detail_code": "stability_support", "name_ko": "안정성·지지", "include": "운동 중 안정, 지지, 미끄러짐", "exclude": "배송", "example": "Feels stable during exercise"},
+        {"detail_code": "inflation", "name_ko": "공기 주입", "include": "펌프, 공기 유지, 주입 과정", "exclude": "일반 설치", "example": "Loses air overnight"}
+      ]}
+    ],
+    "Toys_and_Games": [
+      {"aspect_code": "toy_use", "aspect_name_ko": "놀이·학습", "details": [
+        {"detail_code": "engagement", "name_ko": "흥미·놀이성", "include": "아이의 흥미와 반복 놀이", "exclude": "의학적 발달 효과 확정", "example": "My child plays with it daily"},
+        {"detail_code": "learning", "name_ko": "학습 경험", "include": "학습 활동에 대한 관찰", "exclude": "인지 발달을 의학적 사실로 확정", "example": "Useful for classroom quizzes"},
+        {"detail_code": "sound_recording", "name_ko": "소리·녹음", "include": "버저 소리와 녹음 기능", "exclude": "배송 소음", "example": "Recording is too quiet"},
+        {"detail_code": "child_safety", "name_ko": "아동 안전", "include": "끼임, 전도, 작은 부품 등 관찰된 위험", "exclude": "근거 없는 위험 추정", "example": "Tips over too easily"}
+      ]}
+    ],
+    "Health_and_Household": [
+      {"aspect_code": "household_use", "aspect_name_ko": "건강·가정 사용", "details": [
+        {"detail_code": "absorbency_softness", "name_ko": "흡수력·부드러움", "include": "화장지 등 흡수와 촉감", "exclude": "의학적 피부 효능", "example": "Soft but tears easily"},
+        {"detail_code": "detergent_cleaning", "name_ko": "세탁 세정력", "include": "얼룩·세탁 결과", "exclude": "제품 포장", "example": "Did not remove stains"},
+        {"detail_code": "skin_sensitivity", "name_ko": "피부 민감 경험", "include": "사용자가 경험했다고 밝힌 자극·불편", "exclude": "알레르기 치료나 안전성을 의학적 사실로 확정", "example": "I experienced itching after use"},
+        {"detail_code": "scent", "name_ko": "향", "include": "향의 강도·선호·잔향", "exclude": "유해성 추정", "example": "The scent is too strong"}
+      ]}
+    ]
+  }
+}

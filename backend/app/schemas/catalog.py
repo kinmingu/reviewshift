@@ -19,9 +19,12 @@ class CategoryListResponse(BaseModel):
 class ProductSummary(BaseModel):
     id: str
     title: str
+    title_ko: str | None
     category: str
     image_url: str | None
     review_count: int
+    source_average_rating: float | None
+    source_rating_count: int | None
     available_months: list[str]
     source_mode: SourceMode
 
@@ -49,19 +52,32 @@ class ProductDetail(ProductSummary):
 
 class ReviewLabelResponse(BaseModel):
     aspect: str
+    aspect_name_ko: str | None = None
     detail_label: str
+    detail_name_ko: str | None = None
     polarity: str
     evidence_span: str
     analysis_version: str
+    model: str | None = None
+    prompt_version: str | None = None
+    label_schema_version: str | None = None
 
 
 class ReviewResponse(BaseModel):
     id: str
     title: str | None
     text: str
+    title_ko: str | None = None
+    text_ko: str | None = None
+    translation_model: str | None = None
+    translation_prompt_version: str | None = None
+    translated_at: datetime | None = None
     rating: int
     reviewed_at: datetime
     labels: list[ReviewLabelResponse]
+    analysis_status: Literal[
+        "not_started", "pending", "running", "succeeded", "failed"
+    ]
     source_mode: SourceMode
 
 
@@ -80,20 +96,45 @@ class CoverageResponse(BaseModel):
     baseline_labeled: int
     target_average_rating: float | None
     baseline_average_rating: float | None
+    target_succeeded: int
+    target_failed: int
+    target_in_progress: int
+    target_unprocessed: int
+    target_processing_rate: float | None
+    target_analysis_status: Literal[
+        "not_started", "in_progress", "complete", "partial_failure"
+    ]
+    baseline_succeeded: int
+    baseline_failed: int
+    baseline_in_progress: int
+    baseline_unprocessed: int
+    baseline_processing_rate: float | None
+    baseline_analysis_status: Literal[
+        "not_started", "in_progress", "complete", "partial_failure"
+    ]
 
 
 class ComparisonIssue(BaseModel):
     aspect: str
+    aspect_name_ko: str | None = None
     detail_label: str
+    detail_name_ko: str | None = None
     polarity: str
     target_count: int
     target_total: int
-    target_rate: float = Field(ge=0, le=1)
+    target_rate: float | None = Field(default=None, ge=0, le=1)
     baseline_count: int
     baseline_total: int
-    baseline_rate: float = Field(ge=0, le=1)
-    change_pp: float
+    baseline_rate: float | None = Field(default=None, ge=0, le=1)
+    change_pp: float | None
+    meets_increase_threshold: bool | None
     evidence_review_ids: list[str]
+
+
+class ChangeThresholds(BaseModel):
+    min_review_count: int
+    min_negative_count: int
+    min_increase_pp: float
 
 
 class ComparisonResponse(BaseModel):
@@ -102,9 +143,100 @@ class ComparisonResponse(BaseModel):
     baseline_month: str
     source_mode: SourceMode
     coverage: CoverageResponse
-    status: Literal["ok", "insufficient_data"]
+    status: Literal["ok", "partial", "insufficient_data"]
+    analysis_status: Literal[
+        "not_started", "in_progress", "complete", "partial_failure"
+    ]
+    is_provisional: bool
+    signal_status: Literal[
+        "analysis_incomplete",
+        "insufficient_data",
+        "no_increase_signal",
+        "increase_signal",
+    ]
     issues: list[ComparisonIssue]
     data_version: str
     analysis_version: str
+    model: str | None
+    prompt_version: str | None
+    label_schema_version: str | None
+    thresholds: ChangeThresholds
 
     model_config = ConfigDict(from_attributes=True)
+
+
+EvaluationStatus = Literal["pending", "completed"]
+GoldPolarity = Literal["positive", "negative", "neutral", "uncertain"]
+
+
+class TaxonomyOption(BaseModel):
+    aspect_code: str
+    aspect_name_ko: str
+    detail_code: str
+    detail_name_ko: str
+
+
+class GoldLabelInput(BaseModel):
+    aspect_code: str
+    detail_code: str
+    polarity: GoldPolarity
+    evidence_span: str = Field(min_length=1)
+
+
+class EvaluationAnnotation(BaseModel):
+    reviewer: str | None = None
+    status: EvaluationStatus
+    is_normal_empty: bool
+    gold_labels: list[GoldLabelInput]
+    notes: str | None = None
+    completed_at: datetime | None = None
+
+
+class EvaluationSaveRequest(BaseModel):
+    reviewer: str | None = Field(default=None, max_length=120)
+    status: EvaluationStatus = "pending"
+    is_normal_empty: bool = False
+    gold_labels: list[GoldLabelInput] = Field(default_factory=list)
+    notes: str | None = Field(default=None, max_length=5000)
+
+
+class EvaluationPrediction(BaseModel):
+    status: Literal["not_run", "pending", "running", "succeeded", "failed"]
+    analysis_version: str | None = None
+    labels: list[ReviewLabelResponse] = Field(default_factory=list)
+    error: str | None = None
+
+
+class EvaluationItemResponse(BaseModel):
+    dataset_id: str
+    position: int
+    total: int
+    split: str
+    prompt_tuning_used: bool
+    product_id: str
+    product_name: str
+    product_name_ko: str | None
+    category: str
+    review: ReviewResponse
+    taxonomy: list[TaxonomyOption]
+    annotation: EvaluationAnnotation
+    prediction_revealed: bool
+    prediction: EvaluationPrediction | None = None
+
+
+class EvaluationProgressResponse(BaseModel):
+    dataset_id: str
+    total: int
+    completed: int
+    pending: int
+    next_pending_position: int | None
+    independent_evaluation: bool
+
+
+class TranslationResponse(BaseModel):
+    review_id: str
+    title_ko: str
+    text_ko: str
+    translation_model: str
+    translation_prompt_version: str
+    translated_at: datetime

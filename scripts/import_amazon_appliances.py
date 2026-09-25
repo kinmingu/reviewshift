@@ -183,6 +183,10 @@ def upsert_data(
             "metadata_json": {
                 "fixture": False,
                 "source_category": "Appliances",
+                "title_ko": selection.get("title_ko"),
+                "title_ko_source": selection.get("title_ko_source"),
+                "description_ko": selection.get("description_ko"),
+                "product_type": selection.get("product_type"),
                 "main_category": item.get("main_category"),
                 "store": item.get("store"),
                 "description": _description(item.get("description")),
