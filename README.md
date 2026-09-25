@@ -282,7 +282,7 @@ un_expansion_pipeline.ps1
 .\.venv\Scripts\python.exe -m backend.app.mcp_server
 
 # Claude Code에 등록(프로젝트 경로는 실제 위치로)
-claude mcp add reviewshift -- C:\workspacesg_f_prj\.venv\Scripts\python.exe -m backend.app.mcp_server
+claude mcp add reviewshift -- C:\workspaces\ag_f_prj\.venv\Scripts\python.exe -m backend.app.mcp_server
 ```
 
 등록 후 "reviewshift로 장난감 카테고리에서 아쉬운 점이 많은 상품 알려줘"처럼 요청하면 클라이언트가 위 도구를
