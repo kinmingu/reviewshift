@@ -33,7 +33,7 @@ def test_real_categories_include_all_seven_official_targets(client: TestClient) 
 
 
 @pytest.mark.real_data
-def test_default_real_catalog_has_five_products_per_official_category(
+def test_default_real_catalog_has_eight_products_per_official_category(
     client: TestClient,
 ) -> None:
     response = client.get(
@@ -41,23 +41,23 @@ def test_default_real_catalog_has_five_products_per_official_category(
     )
     assert response.status_code == 200
     payload = response.json()
-    assert payload["total"] == 35
-    assert len(payload["items"]) == 35
+    assert payload["total"] == 56
+    assert len(payload["items"]) == 56
     assert all(item["title_ko"] for item in payload["items"])
 
     counts: dict[str, int] = {}
     for item in payload["items"]:
         counts[item["category"]] = counts.get(item["category"], 0) + 1
     detail = client.get(f"/api/v1/products/{payload['items'][0]['id']}").json()
-    assert detail["metadata"]["analysis_sample_size"] in {20, 30, 50, 70, 100}
+    assert detail["metadata"]["analysis_sample_size"] in {15, 20, 30, 50, 70, 100}
     assert counts == {
-        "Electronics": 5,
-        "Beauty_and_Personal_Care": 5,
-        "Cell_Phones_and_Accessories": 5,
-        "Home_and_Kitchen": 5,
-        "Sports_and_Outdoors": 5,
-        "Toys_and_Games": 5,
-        "Health_and_Household": 5,
+        "Electronics": 8,
+        "Beauty_and_Personal_Care": 8,
+        "Cell_Phones_and_Accessories": 8,
+        "Home_and_Kitchen": 8,
+        "Sports_and_Outdoors": 8,
+        "Toys_and_Games": 8,
+        "Health_and_Household": 8,
     }
 
 

@@ -182,3 +182,9 @@
 - [x] `Dockerfile.api`(Python 3.12, alembic 자동 적용), `frontend_react/Dockerfile`(빌드 후 nginx, /api 프록시 300초)
 - [x] `compose.yaml` app 프로필: db·api·web, Ollama는 host.docker.internal 사용, `pywin32`는 Windows 전용 표시
 - [x] 컨테이너에서 화면→API→DB, 호스트 Ollama 의미 검색, 컨테이너 내부 MCP stdio 도구 호출 확인
+
+## 상품 추가 2차 (2026-09-27 사용자 요청): 카테고리당 8개, 총 56개
+
+- [x] 카테고리마다 3개 추가(21개), AI 표본 30/20/15건, 같은 선정 기준(감성 미사용), 한국어명 Claude 초안
+- [x] 적재 완료, 테스트 56개·카테고리당 8개 기준으로 갱신
+- [ ] 자동 실행(임베딩 → 표본 분류 → FAQ) 완료(예상 9/28 새벽 4~5시), 로그 data/evaluation/expansion_pipeline.log

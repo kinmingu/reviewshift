@@ -85,7 +85,7 @@ def test_selected_rows_exclude_duplicates_ineligible_and_outside_period(
 EXTRA_PRODUCTS = [
     {"parent_asin": f"PARENT-{index}", "months": ["2023-01", "2023-02", "2023-03"],
      "analysis_sample_size": 20}
-    for index in range(3, 6)
+    for index in range(3, 9)
 ]
 
 
@@ -115,7 +115,7 @@ def test_load_selection_requires_two_products_and_three_consecutive_months(tmp_p
     )
 
     selected = load_selection(path, "Electronics")
-    assert set(selected) == {"PARENT-1", "PARENT-2", "PARENT-3", "PARENT-4", "PARENT-5"}
+    assert set(selected) == {f"PARENT-{index}" for index in range(1, 9)}
 
 
 def test_load_selection_rejects_non_consecutive_months(tmp_path):

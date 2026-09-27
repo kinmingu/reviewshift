@@ -91,6 +91,60 @@
             "2018-04": 120
           },
           "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B0BY8N7HHG",
+          "title_ko": "더블유킹 50W 방수 블루투스 스피커",
+          "title_ko_source": "claude-draft",
+          "description_ko": "IPX6 방수를 지원하는 50W 출력의 휴대용 블루투스 스피커입니다.",
+          "product_type": "블루투스 스피커",
+          "months": [
+            "2020-08",
+            "2020-09",
+            "2020-10"
+          ],
+          "monthly_counts": {
+            "2020-08": 129,
+            "2020-09": 111,
+            "2020-10": 135
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B09V1FT19S",
+          "title_ko": "샌디스크 익스트림 256GB microSDXC 메모리카드",
+          "title_ko_source": "claude-draft",
+          "description_ko": "최대 160MB/s 읽기 속도의 UHS-I microSDXC 메모리카드(어댑터 포함)입니다.",
+          "product_type": "메모리카드",
+          "months": [
+            "2021-10",
+            "2021-11",
+            "2021-12"
+          ],
+          "monthly_counts": {
+            "2021-10": 136,
+            "2021-11": 103,
+            "2021-12": 136
+          },
+          "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B07FP8VLXS",
+          "title_ko": "로지텍 K400 플러스 무선 터치패드 키보드",
+          "title_ko_source": "claude-draft",
+          "description_ko": "터치패드가 내장된 PC·TV 연결용 무선 키보드입니다.",
+          "product_type": "무선 키보드",
+          "months": [
+            "2016-01",
+            "2016-02",
+            "2016-03"
+          ],
+          "monthly_counts": {
+            "2016-01": 119,
+            "2016-02": 117,
+            "2016-03": 139
+          },
+          "analysis_sample_size": 15
         }
       ]
     },
@@ -185,6 +239,60 @@
             "2023-01": 144
           },
           "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B07D2JQMG1",
+          "title_ko": "코니에어 더블 세라믹 1¼인치 고데기",
+          "title_ko_source": "claude-draft",
+          "description_ko": "1¼인치 세라믹 배럴로 느슨한 웨이브를 만드는 컬링 아이론입니다.",
+          "product_type": "고데기",
+          "months": [
+            "2020-10",
+            "2020-11",
+            "2020-12"
+          ],
+          "monthly_counts": {
+            "2020-10": 145,
+            "2020-11": 116,
+            "2020-12": 114
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B0CCGFTJXG",
+          "title_ko": "월 그룸즈맨 충전식 수염 트리머",
+          "title_ko_source": "claude-draft",
+          "description_ko": "수염·콧수염·코털 정리용 충전식 트리머 세트입니다.",
+          "product_type": "수염 트리머",
+          "months": [
+            "2020-07",
+            "2020-08",
+            "2020-09"
+          ],
+          "monthly_counts": {
+            "2020-07": 119,
+            "2020-08": 129,
+            "2020-09": 126
+          },
+          "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B07BQMF4MK",
+          "title_ko": "빅토리아 시크릿 아쿠아 키스 바디 미스트",
+          "title_ko_source": "claude-draft",
+          "description_ko": "시원한 물 향 계열의 여성용 바디 미스트입니다.",
+          "product_type": "바디 미스트",
+          "months": [
+            "2022-08",
+            "2022-09",
+            "2022-10"
+          ],
+          "monthly_counts": {
+            "2022-08": 120,
+            "2022-09": 129,
+            "2022-10": 127
+          },
+          "analysis_sample_size": 15
         }
       ]
     },
@@ -279,6 +387,60 @@
             "2021-06": 125
           },
           "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B0092KJ9BU",
+          "title_ko": "폴리 보이저 레전드 블루투스 헤드셋",
+          "title_ko_source": "claude-draft",
+          "description_ko": "소음 제거 마이크를 갖춘 한쪽 귀 착용형 무선 블루투스 헤드셋입니다.",
+          "product_type": "블루투스 헤드셋",
+          "months": [
+            "2014-08",
+            "2014-09",
+            "2014-10"
+          ],
+          "monthly_counts": {
+            "2014-08": 122,
+            "2014-09": 116,
+            "2014-10": 137
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B09KVH6BSH",
+          "title_ko": "스와티 애플워치 나일론 솔로루프 밴드",
+          "title_ko_source": "claude-draft",
+          "description_ko": "애플워치 41·40·38mm용 신축성 나일론 밴드입니다.",
+          "product_type": "워치 밴드",
+          "months": [
+            "2021-11",
+            "2021-12",
+            "2022-01"
+          ],
+          "monthly_counts": {
+            "2021-11": 107,
+            "2021-12": 124,
+            "2022-01": 144
+          },
+          "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B0BZ8FPHW5",
+          "title_ko": "퓨게텍 51인치 셀카봉 삼각대",
+          "title_ko_source": "claude-draft",
+          "description_ko": "알루미늄 재질의 51인치 셀카봉 겸 삼각대입니다.",
+          "product_type": "셀카봉",
+          "months": [
+            "2020-10",
+            "2020-11",
+            "2020-12"
+          ],
+          "monthly_counts": {
+            "2020-10": 127,
+            "2020-11": 100,
+            "2020-12": 148
+          },
+          "analysis_sample_size": 15
         }
       ]
     },
@@ -373,6 +535,60 @@
             "2020-05": 141
           },
           "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B00B1N0R6C",
+          "title_ko": "퍼펙트 피트니스 앱 카버 프로 복근 롤러",
+          "title_ko_source": "claude-draft",
+          "description_ko": "스프링 저항이 내장된 복근 운동용 롤러입니다.",
+          "product_type": "복근 롤러",
+          "months": [
+            "2015-02",
+            "2015-03",
+            "2015-04"
+          ],
+          "monthly_counts": {
+            "2015-02": 143,
+            "2015-03": 114,
+            "2015-04": 116
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B09C6PQJJH",
+          "title_ko": "위트콥 자전거 안장",
+          "title_ko_source": "claude-draft",
+          "description_ko": "남녀 공용 방수 자전거 안장입니다.",
+          "product_type": "자전거 안장",
+          "months": [
+            "2021-02",
+            "2021-03",
+            "2021-04"
+          ],
+          "monthly_counts": {
+            "2021-02": 113,
+            "2021-03": 143,
+            "2021-04": 120
+          },
+          "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B01IL6A0I6",
+          "title_ko": "운동용 저항 밴드 세트",
+          "title_ko_source": "claude-draft",
+          "description_ko": "다리·팔 운동에 쓰는 저항 밴드 세트입니다.",
+          "product_type": "저항 밴드",
+          "months": [
+            "2017-06",
+            "2017-07",
+            "2017-08"
+          ],
+          "monthly_counts": {
+            "2017-06": 104,
+            "2017-07": 142,
+            "2017-08": 131
+          },
+          "analysis_sample_size": 15
         }
       ]
     },
@@ -467,6 +683,60 @@
             "2018-04": 130
           },
           "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B09NTXBJDM",
+          "title_ko": "샤시보 모양 변형 퍼즐 큐브",
+          "title_ko_source": "claude-draft",
+          "description_ko": "희토류 자석 36개가 들어간 모양 변형 피젯 큐브입니다.",
+          "product_type": "피젯 큐브",
+          "months": [
+            "2021-06",
+            "2021-07",
+            "2021-08"
+          ],
+          "monthly_counts": {
+            "2021-06": 129,
+            "2021-07": 142,
+            "2021-08": 105
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B0BW3QTWJJ",
+          "title_ko": "베이비 아인슈타인 첫 음악 선생님 장난감 세트",
+          "title_ko_source": "claude-draft",
+          "description_ko": "신생아·영아용 발달 음악 장난감 선물 세트입니다.",
+          "product_type": "유아 음악 장난감",
+          "months": [
+            "2015-04",
+            "2015-05",
+            "2015-06"
+          ],
+          "monthly_counts": {
+            "2015-04": 131,
+            "2015-05": 117,
+            "2015-06": 125
+          },
+          "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B0C3H818H4",
+          "title_ko": "익스플로딩 키튼 파티 팩 카드 게임",
+          "title_ko_source": "claude-draft",
+          "description_ko": "여럿이 즐기는 러시안룰렛 방식의 카드 게임 파티 팩입니다.",
+          "product_type": "카드 게임",
+          "months": [
+            "2020-02",
+            "2020-03",
+            "2020-04"
+          ],
+          "monthly_counts": {
+            "2020-02": 185,
+            "2020-03": 113,
+            "2020-04": 75
+          },
+          "analysis_sample_size": 15
         }
       ]
     },
@@ -561,6 +831,60 @@
             "2021-04": 111
           },
           "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B0C5Q6DWB5",
+          "title_ko": "아이고스타 1.7L 전기 주전자",
+          "title_ko_source": "claude-draft",
+          "description_ko": "LED 조명이 있는 1.7리터 전기 주전자입니다.",
+          "product_type": "전기 주전자",
+          "months": [
+            "2019-12",
+            "2020-01",
+            "2020-02"
+          ],
+          "monthly_counts": {
+            "2019-12": 128,
+            "2020-01": 142,
+            "2020-02": 105
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B09ZL9LQ9L",
+          "title_ko": "유토피아 베딩 퀸 사이즈 침대 시트 4종 세트",
+          "title_ko_source": "claude-draft",
+          "description_ko": "기모 마이크로파이버 소재의 퀸 사이즈 침대 시트 4종 세트입니다.",
+          "product_type": "침구",
+          "months": [
+            "2021-06",
+            "2021-07",
+            "2021-08"
+          ],
+          "monthly_counts": {
+            "2021-06": 146,
+            "2021-07": 119,
+            "2021-08": 110
+          },
+          "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B07DTNNS1X",
+          "title_ko": "대시 미니 전기밥솥",
+          "title_ko_source": "claude-draft",
+          "description_ko": "분리형 논스틱 내솥과 보온 기능이 있는 소형 전기밥솥입니다.",
+          "product_type": "소형 밥솥",
+          "months": [
+            "2020-01",
+            "2020-02",
+            "2020-03"
+          ],
+          "monthly_counts": {
+            "2020-01": 145,
+            "2020-02": 122,
+            "2020-03": 108
+          },
+          "analysis_sample_size": 15
         }
       ]
     },
@@ -655,6 +979,60 @@
             "2020-10": 113
           },
           "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B0BL2GJJ13",
+          "title_ko": "스포츠 리서치 콜라겐 펩타이드 파우더",
+          "title_ko_source": "claude-draft",
+          "description_ko": "가수분해 1·3형 콜라겐 단백질 보충제 파우더입니다.",
+          "product_type": "콜라겐 보충제",
+          "months": [
+            "2017-03",
+            "2017-04",
+            "2017-05"
+          ],
+          "monthly_counts": {
+            "2017-03": 129,
+            "2017-04": 117,
+            "2017-05": 129
+          },
+          "analysis_sample_size": 30
+        },
+        {
+          "parent_asin": "B07DXCKN8Q",
+          "title_ko": "토일렛트리 포세이돈 휴대용 무선 구강세정기",
+          "title_ko_source": "claude-draft",
+          "description_ko": "휴대용 무선 물 치실(구강세정기)입니다.",
+          "product_type": "구강세정기",
+          "months": [
+            "2016-03",
+            "2016-04",
+            "2016-05"
+          ],
+          "monthly_counts": {
+            "2016-03": 141,
+            "2016-04": 109,
+            "2016-05": 125
+          },
+          "analysis_sample_size": 20
+        },
+        {
+          "parent_asin": "B07BT9G1CT",
+          "title_ko": "몰덱스 스파크플러그 폼 귀마개 60쌍",
+          "title_ko_source": "claude-draft",
+          "description_ko": "수면·소음 차단용 부드러운 폼 귀마개 60쌍입니다.",
+          "product_type": "귀마개",
+          "months": [
+            "2017-02",
+            "2017-03",
+            "2017-04"
+          ],
+          "monthly_counts": {
+            "2017-02": 117,
+            "2017-03": 152,
+            "2017-04": 106
+          },
+          "analysis_sample_size": 15
         }
       ]
     }

@@ -43,7 +43,7 @@ while ($true) {
         }
     }
     if ($sent["done"]) { break }
-    $running = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match "run_expansion_pipeline" -and $_.ProcessId -ne $PID -and $_.CommandLine -notmatch "notify_pipeline" }
+    $running = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match "run_expansion_pipeline|run_more_products" -and $_.ProcessId -ne $PID -and $_.CommandLine -notmatch "notify_pipeline" }
     if (-not $running) {
         Show-Toast "ReviewShift: 자동 실행이 멈췄어요" "완료 전에 멈췄어요. scripts\run_expansion_pipeline.ps1 을 다시 실행하면 이어서 처리합니다."
         break

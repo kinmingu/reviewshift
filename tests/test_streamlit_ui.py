@@ -40,10 +40,10 @@ def test_real_catalog_detail_shows_monthly_data_and_analysis_pending(
     assert not page.exception
     assert not page.error
     assert any("실제 공개 배포 데이터" in info.value for info in page.info)
-    assert len(page.button) == 35
+    assert len(page.button) == 56
 
     page.selectbox[0].set_value("Home_and_Kitchen").run(timeout=30)
-    assert len(page.button) == 5
+    assert len(page.button) == 8
     page.button(key="open-amazon-B0CFTCTHTK").click().run(timeout=30)
     assert not page.exception
     assert not page.error
@@ -72,12 +72,12 @@ def test_electronics_catalog_shows_each_product_review_count(
     review_metrics = [
         metric for metric in page.metric if metric.label == "제품별 저장 리뷰 수"
     ]
-    assert len(review_metrics) == 5
+    assert len(review_metrics) == 8
     assert all(metric.value.endswith("건") for metric in review_metrics)
     source_rating_metrics = [
         metric for metric in page.metric if metric.label == "원천 전체 평균 평점"
     ]
-    assert len(source_rating_metrics) == 5
+    assert len(source_rating_metrics) == 8
 
     page.button(key="open-amazon-B09M8N7YML").click().run(timeout=30)
     assert page.title[0].value.startswith("알로 에센셜 스포트라이트")

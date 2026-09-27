@@ -31,7 +31,7 @@ DEFAULT_INPUT = Path("data/raw/amazon_reviews_2023")
 DEFAULT_SELECTION = Path("config/amazon_category_selection.json")
 DEFAULT_REPORT = Path("data/processed")
 # 카테고리별 제품 수. 제품마다 AI 분석 표본 수(analysis_sample_size)만 다르게 둡니다.
-PRODUCTS_PER_CATEGORY = 5
+PRODUCTS_PER_CATEGORY = 8
 REVIEW_COLUMNS = [
     "rating",
     "title",
