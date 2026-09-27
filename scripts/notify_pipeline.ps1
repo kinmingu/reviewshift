@@ -27,12 +27,12 @@ if ($Test) {
 # === [감시] 1분마다 로그를 읽어 새로 도달한 단계만 한 번씩 알립니다 ===
 $sent = @{}
 $milestones = @(
-    @{ key = "stage20"; pattern = "단계 30건 시작"; title = "ReviewShift: 35개 상품 20건씩 분석 완료";
+    @{ key = "stage20"; pattern = "단계 30건 시작"; title = "ReviewShift: 모든 상품 20건씩 분석 완료";
        body = "모든 상품에 결과가 생겼어요. http://127.0.0.1:5173 에서 확인하세요. 나머지 분석은 계속 진행 중입니다." },
-    @{ key = "classified"; pattern = "\[3/3\] FAQ answers"; title = "ReviewShift: AI 표본 분류 완료";
-       body = "35개 상품 표본 분류가 끝났어요. 이어서 FAQ 답변을 만드는 중입니다(약 4~5시간)." },
+    @{ key = "classified"; pattern = "\[3/3\] FAQ answers"; title = "ReviewShift: AI 표본 분류 완료 (56개 상품)";
+       body = "표본 분류가 끝났어요. 이어서 새 상품 FAQ 답변을 만드는 중입니다(약 4시간)." },
     @{ key = "done"; pattern = "all done"; title = "ReviewShift: 자동 실행 모두 완료";
-       body = "분류와 FAQ 답변 생성이 모두 끝났어요. 화면과 챗봇을 확인해 보세요." }
+       body = "56개 상품의 분류와 FAQ 답변 생성이 모두 끝났어요. http://127.0.0.1:5173 에서 확인해 보세요." }
 )
 while ($true) {
     $text = if (Test-Path $log) { Get-Content $log -Raw -Encoding utf8 } else { "" }
