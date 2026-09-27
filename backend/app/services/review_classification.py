@@ -59,7 +59,9 @@ def review_input_hash(title: str | None, text: str) -> str:
 
 # === [원문 근거 검증] 모델이 낸 근거가 리뷰 원문의 실제 구간인지 확인합니다 ===
 # 근거 규칙이 바뀌면 이 버전을 올리고 run 설정에 기록합니다.
-EVIDENCE_RULE_VERSION = "evidence-rule-v2-word-boundary-min2"
+# v3: 제목·본문이 4단어 이하로 짧으면 한 단어 근거 허용(짧은 리뷰가 반복 실패하던 문제)
+EVIDENCE_RULE_VERSION = "evidence-rule-v3-short-part-ok"
+SHORT_PART_MAX_WORDS = 4
 MODEL_MIN_EVIDENCE_WORDS = 2
 
 # 곡선 따옴표·대시는 1:1 문자 치환이라 치환 전후 위치가 같습니다.
@@ -75,7 +77,8 @@ def _source_evidence(
 
     허용하는 차이는 따옴표 모양, 대소문자, 연속 공백뿐이고 단어 변경·요약은 허용하지 않습니다.
     - 단어 경계: "on"이 "Amazon" 안에서 일치하는 식의 단어 일부 일치는 거부합니다.
-    - 최소 길이: min_words보다 짧은 근거는 제목이나 본문 전체와 같을 때만 허용합니다.
+    - 최소 길이: min_words보다 짧은 근거는 그 제목·본문이 4단어 이하로 짧을 때만 허용합니다
+      (예: 본문 "Very powerful!"에서 "powerful"). 긴 리뷰에서 한 단어만 따는 것은 막습니다.
     """
     tokens = evidence.translate(_PUNCTUATION_TABLE).split()
     if not tokens:
@@ -91,7 +94,7 @@ def _source_evidence(
             continue
         # 저장값은 모델 출력이 아니라 원문의 실제 문자(대소문자·공백 포함)입니다.
         span = part[match.start() : match.end()]
-        if len(tokens) < min_words and span.strip() != part.strip():
+        if len(tokens) < min_words and len(part.split()) > SHORT_PART_MAX_WORDS:
             too_short = True
             continue
         return span, None

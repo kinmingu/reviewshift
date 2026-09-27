@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import re
 from dataclasses import dataclass
 
@@ -26,6 +27,10 @@ from backend.app.schemas.catalog import (
 )
 from backend.app.services.catalog import CatalogService, ProductNotFoundError
 from backend.app.services.review_agent import AGENT_PROMPT_VERSION, ReviewQuestionAgent
+
+# 분석 수가 이만큼 이하로 바뀌면 저장 답을 그대로 씁니다.
+STALE_RATIO = 0.05
+STALE_MIN_COUNT = 2
 
 # === [자주 묻는 질문] 상품마다 미리 답을 만들어 두는 질문(첫 번째는 리포트 상단 요약) ===
 FAQ_QUESTIONS: tuple[tuple[str, str, str], ...] = (
@@ -81,10 +86,15 @@ class AnswerStore:
 
     @staticmethod
     def is_stale(row: AgentAnswer, snapshot: AnalysisSnapshot) -> bool:
-        return (row.analysis_version, row.analyzed_count) != (
-            snapshot.version,
-            snapshot.analyzed_count,
-        )
+        """분석 버전이 바뀌었거나 분석 수가 5%(최소 2건)를 넘게 달라졌으면 낡은 답입니다.
+
+        1~2건의 재분류마다 답 6개를 다시 만들지 않도록 작은 변화는 허용하고, 화면에는 답을 만든
+        시점의 분석 건수를 그대로 표시합니다.
+        """
+        if row.analysis_version != snapshot.version:
+            return True
+        tolerance = max(STALE_MIN_COUNT, math.ceil(row.analyzed_count * STALE_RATIO))
+        return abs(snapshot.analyzed_count - row.analyzed_count) > tolerance
 
     # === [저장] 검증을 통과한 답만 같은 질문 키로 덮어씁니다 ===
     def save(

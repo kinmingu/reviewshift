@@ -456,6 +456,8 @@ def test_model_evidence_requires_word_boundary_and_minimum_length() -> None:
         parse("volume")
     # 제목 전체가 한 단어인 짧은 리뷰는 예외로 허용합니다.
     assert parse("Amazin!!!", title="Amazin!!!").labels[0].evidence_span == "Amazin!!!"
+    # 제목·본문이 4단어 이하로 짧으면 그 안의 한 단어 근거도 허용합니다(규칙 v3).
+    assert parse("powerful", title="Very powerful!").labels[0].evidence_span == "powerful"
     # 사람 정답은 한 단어 근거를 허용하되 단어 경계는 똑같이 검사합니다.
     assert parse("volume", min_words=1).labels[0].evidence_span == "volume"
     with pytest.raises(EvidenceValidationError):

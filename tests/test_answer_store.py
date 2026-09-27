@@ -148,3 +148,19 @@ def test_faq_generation_and_listing(client: TestClient) -> None:
 
 def test_faq_for_missing_product_returns_404(client: TestClient) -> None:
     assert client.get("/api/v1/products/nope/faq").status_code == 404
+
+
+def test_small_analysis_change_keeps_stored_answer(client: TestClient) -> None:
+    _ask(client, "누수 문제 있나요?")
+    with SessionLocal() as session:
+        session.execute(
+            update(AgentAnswer)
+            .where(AgentAnswer.product_id == PRODUCT)
+            .values(analyzed_count=11)  # 12건 중 1건 차이: 허용 범위(5% 또는 2건)
+        )
+        session.commit()
+    again = _ask(client, "누수 문제 있나요?")
+    assert again["cached"] is True
+    assert again["is_stale"] is False
+    assert again["analyzed_count"] == 11  # 화면에는 답을 만든 시점의 건수를 그대로 표시
+    assert len(_CountingAgent.calls) == 1
