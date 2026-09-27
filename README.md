@@ -308,3 +308,17 @@ docker compose --profile app stop api web     # 컨테이너 중지(DB는 계속
 ```
 
 `docker compose up -d db`만 실행하면 기존처럼 DB만 뜨고, 개발 서버(8000/5173)는 PC에서 직접 실행한다.
+
+## 같은 와이파이에서 화면 공유
+
+기본 개발 서버는 이 PC에서만 열린다. 같은 와이파이의 다른 기기에서 보려면 화면 서버만 모든 주소로 연다.
+API(8000)와 Ollama는 계속 이 PC 전용이며 화면 서버(Vite)가 요청을 전달한다.
+
+```powershell
+cd frontend_react
+$env:WEB_HOST="0.0.0.0"; npm run dev
+# 다른 기기: http://<이 PC의 와이파이 IP>:5173  (ipconfig의 Wi-Fi IPv4 주소)
+```
+
+로그인 기능이 없으므로 집·팀 전용 와이파이에서만 사용한다. Windows 방화벽에서 Node.js 수신이 허용되어 있어야
+한다. 다른 사람이 챗봇을 쓰면 이 PC CPU를 사용하므로 분류 배치가 느려진다.
