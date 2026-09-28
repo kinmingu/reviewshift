@@ -72,7 +72,7 @@
             "2022-02": 112,
             "2022-03": 130
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B00BIFNTMC",
@@ -90,7 +90,7 @@
             "2018-03": 133,
             "2018-04": 120
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B0BY8N7HHG",
@@ -108,7 +108,7 @@
             "2020-09": 111,
             "2020-10": 135
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B09V1FT19S",
@@ -126,7 +126,7 @@
             "2021-11": 103,
             "2021-12": 136
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B07FP8VLXS",
@@ -144,7 +144,7 @@
             "2016-02": 117,
             "2016-03": 139
           },
-          "analysis_sample_size": 15
+          "analysis_sample_size": 50
         }
       ]
     },
@@ -220,7 +220,7 @@
             "2021-01": 119,
             "2021-02": 136
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B0BJLPRXZ6",
@@ -238,7 +238,7 @@
             "2022-12": 112,
             "2023-01": 144
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B07D2JQMG1",
@@ -256,7 +256,7 @@
             "2020-11": 116,
             "2020-12": 114
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B0CCGFTJXG",
@@ -274,7 +274,7 @@
             "2020-08": 129,
             "2020-09": 126
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B07BQMF4MK",
@@ -292,7 +292,7 @@
             "2022-09": 129,
             "2022-10": 127
           },
-          "analysis_sample_size": 15
+          "analysis_sample_size": 50
         }
       ]
     },
@@ -368,7 +368,7 @@
             "2022-12": 140,
             "2023-01": 114
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B08J8DVRWP",
@@ -386,7 +386,7 @@
             "2021-05": 114,
             "2021-06": 125
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B0092KJ9BU",
@@ -404,7 +404,7 @@
             "2014-09": 116,
             "2014-10": 137
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B09KVH6BSH",
@@ -422,7 +422,7 @@
             "2021-12": 124,
             "2022-01": 144
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B0BZ8FPHW5",
@@ -440,7 +440,7 @@
             "2020-11": 100,
             "2020-12": 148
           },
-          "analysis_sample_size": 15
+          "analysis_sample_size": 50
         }
       ]
     },
@@ -516,7 +516,7 @@
             "2018-05": 109,
             "2018-06": 160
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B09LWFFRRG",
@@ -534,7 +534,7 @@
             "2020-04": 118,
             "2020-05": 141
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B00B1N0R6C",
@@ -552,7 +552,7 @@
             "2015-03": 114,
             "2015-04": 116
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B09C6PQJJH",
@@ -570,7 +570,7 @@
             "2021-03": 143,
             "2021-04": 120
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B01IL6A0I6",
@@ -588,7 +588,7 @@
             "2017-07": 142,
             "2017-08": 131
           },
-          "analysis_sample_size": 15
+          "analysis_sample_size": 50
         }
       ]
     },
@@ -664,7 +664,7 @@
             "2021-05": 122,
             "2021-06": 114
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B077935QMS",
@@ -682,7 +682,7 @@
             "2018-03": 127,
             "2018-04": 130
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B09NTXBJDM",
@@ -700,7 +700,7 @@
             "2021-07": 142,
             "2021-08": 105
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B0BW3QTWJJ",
@@ -718,7 +718,7 @@
             "2015-05": 117,
             "2015-06": 125
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B0C3H818H4",
@@ -736,7 +736,7 @@
             "2020-03": 113,
             "2020-04": 75
           },
-          "analysis_sample_size": 15
+          "analysis_sample_size": 50
         }
       ]
     },
@@ -812,7 +812,7 @@
             "2019-02": 112,
             "2019-03": 142
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B0C7GYY5N9",
@@ -830,7 +830,7 @@
             "2021-03": 129,
             "2021-04": 111
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B0C5Q6DWB5",
@@ -848,7 +848,7 @@
             "2020-01": 142,
             "2020-02": 105
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B09ZL9LQ9L",
@@ -866,7 +866,7 @@
             "2021-07": 119,
             "2021-08": 110
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B07DTNNS1X",
@@ -884,7 +884,7 @@
             "2020-02": 122,
             "2020-03": 108
           },
-          "analysis_sample_size": 15
+          "analysis_sample_size": 50
         }
       ]
     },
@@ -960,7 +960,7 @@
             "2022-11": 121,
             "2022-12": 113
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B0C42774KB",
@@ -978,7 +978,7 @@
             "2020-09": 120,
             "2020-10": 113
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B0BL2GJJ13",
@@ -996,7 +996,7 @@
             "2017-04": 117,
             "2017-05": 129
           },
-          "analysis_sample_size": 30
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B07DXCKN8Q",
@@ -1014,7 +1014,7 @@
             "2016-04": 109,
             "2016-05": 125
           },
-          "analysis_sample_size": 20
+          "analysis_sample_size": 50
         },
         {
           "parent_asin": "B07BT9G1CT",
@@ -1032,7 +1032,7 @@
             "2017-03": 152,
             "2017-04": 106
           },
-          "analysis_sample_size": 15
+          "analysis_sample_size": 50
         }
       ]
     }

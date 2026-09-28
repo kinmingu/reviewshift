@@ -187,4 +187,10 @@
 
 - [x] 카테고리마다 3개 추가(21개), AI 표본 30/20/15건, 같은 선정 기준(감성 미사용), 한국어명 Claude 초안
 - [x] 적재 완료, 테스트 56개·카테고리당 8개 기준으로 갱신
-- [ ] 자동 실행(임베딩 → 표본 분류 → FAQ) 완료(예상 9/28 새벽 4~5시), 로그 data/evaluation/expansion_pipeline.log
+- [x] 자동 실행(임베딩 → 표본 분류 → FAQ) 완료(9/28 오전), 로그 data/evaluation/expansion_pipeline.log
+
+## 최소 표본 50건 확대 (2026-09-28 사용자 요청)
+
+- [x] 표본 15/20/30건 상품 35개를 50건으로(설정 파일·DB 메타데이터, 예전 값은 `analysis_sample_size_previous`)
+- [ ] `scripts/run_min50_pipeline.ps1`: 추가 표본 약 970건 분류(약 10시간) → FAQ 재생성(약 7시간) → 상품 목록 갱신,
+  로그 data/evaluation/min50_pipeline.log, 절전 방지·Windows 완료 알림

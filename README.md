@@ -10,7 +10,7 @@
 - PostgreSQL 17 + pgvector 0.8.6, SQLAlchemy, Alembic
 - Streamlit 상품 목록·상세·월별 리뷰 수·평균 별점·리뷰 원문 화면
 - 합성 fixture 3개와 별도로 관리되는 실제 Amazon 상품(공식 7개 카테고리 × 5개 = 35개 + 기존 Appliances 3개)
-- 35개 상품의 연속 3개월 리뷰 13,047건(정확 중복 제거). AI 분석은 상품마다 20/30/50/70/100건 표본
+- 35개 상품의 연속 3개월 리뷰 13,047건(정확 중복 제거). AI 분석은 상품마다 50/70/100건 표본(2026-09-28 최소 50건으로 확대)
 - 기존 Appliances 검증 상품 3개와 리뷰 7,801건은 보존하되 기본 14개 목록에서는 분리
 - 14개 상품의 한국어 표시명·요약 설명과 제품별 리뷰 수·원천 평균 평점 표시
 - 영어 원문 상품명·설명·리뷰는 보존하고 화면에서 원문임을 명시
@@ -258,10 +258,17 @@ foreach ($item in @(
 `analysis_sample_size`). 표본은 각 달의 리뷰 수에 비례해 나누고 달 안에서 SHA-256 순서로 고른다. 별점 분포·원문·
 리뷰 검색은 저장 리뷰 전체, 좋아요/아쉬워요·항목·변화는 표본 기준이다.
 
+2026-09-28 사용자 요청으로 표본이 15/20/30건이던 35개 상품을 최소 50건으로 늘렸다(예전 값은 상품 메타데이터
+`analysis_sample_size_previous`에 기록). 월별 올림 배분 규칙은 같아서 기존 표본은 그대로 포함되고 약 970건이 추가된다.
+
+```powershell
+# 늘어난 표본 분류(약 10시간) → 낡은 FAQ 재생성(약 7시간) → 상품 목록 갱신. 절전 방지·완료 알림 포함
+powershell -ExecutionPolicy Bypass -File scripts\run_min50_pipeline.ps1
+```
+
 ```powershell
 # 임베딩 → 표본 분류(모든 상품 20건→30→50→70→100) → FAQ 생성. 중단 후 다시 실행하면 이어서 처리
-powershell -ExecutionPolicy Bypass -File scripts
-un_expansion_pipeline.ps1
+powershell -ExecutionPolicy Bypass -File scripts\run_expansion_pipeline.ps1
 ```
 
 ## MCP 서버 (다른 AI 클라이언트에서 리뷰 데이터 사용)
