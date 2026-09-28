@@ -38,6 +38,7 @@ def test_tools_are_listed_and_read_only() -> None:
         "compare_months",
         "search_reviews",
         "get_faq_answers",
+        "quick_answer",
     }
     assert all(tool.annotations and tool.annotations.read_only_hint for tool in tools.values())
     assert "months" in tools["search_reviews"].input_schema["required"]

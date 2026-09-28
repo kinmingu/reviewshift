@@ -38,6 +38,7 @@ from backend.app.services.human_evaluation import (
     EvaluationValidationError,
     HumanEvaluationService,
 )
+from backend.app.services.mcp_tools import McpReviewTools, McpUnavailableError
 from backend.app.services.review_agent import AgentUnavailableError
 from backend.app.services.review_search import ReviewSearchService
 from backend.app.services.review_translation import TranslationError
@@ -211,6 +212,26 @@ def product_faq(product_id: str, session: DbSession) -> FaqResponse:
         return AnswerStore(session).faq(product_id)
     except ProductNotFoundError as exc:
         raise _not_found(product_id) from exc
+
+
+@router.post("/api/v1/products/{product_id}/quick-answer")
+def quick_answer(product_id: str, payload: AgentQuestionRequest) -> dict:
+    """즉시 답변(LLM 없음): MCP 도구 quick_answer를 같은 프로세스 MCP 연결로 호출합니다."""
+    try:
+        (result,) = McpReviewTools("mcp_memory", timeout_seconds=60).call_tools(
+            [("quick_answer", {"product_id": product_id, "question": payload.question})]
+        )
+    except McpUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=f"MCP 도구 호출 실패: {exc}") from exc
+    if not result.ok or result.data is None:
+        message = result.error or "즉시 답변을 만들지 못했습니다."
+        status_code = 404 if "상품을 찾을 수 없습니다" in message else 503
+        raise HTTPException(status_code=status_code, detail=message)
+    return {**result.data, "tool_calls": [
+        {"tool": "quick_answer", "ok": True, "duration_ms": result.duration_ms,
+         "summary": f"항목 {len(result.data['aspects'])}개, 관련 리뷰 "
+         f"{len(result.data['related_reviews'])}건", "transport": "mcp_memory"}
+    ]}
 
 
 @router.post(

@@ -290,3 +290,48 @@ export interface AnomalyReport {
 }
 
 export const fetchAnomalies = () => getJson<AnomalyReport>("/api/v1/anomalies");
+
+// === [즉시 답변] LLM 없이 DB 분석 결과·관련 리뷰로 만든 답(MCP 도구 quick_answer) ===
+export interface QuickAspect {
+  aspect: string;
+  detail_label: string;
+  name_ko: string;
+  similarity: number;
+  mention_count: number;
+  positive_count: number;
+  negative_count: number;
+  examples: { review_id: string; polarity: "positive" | "negative"; rating: number; date: string; evidence: string }[];
+}
+
+export interface QuickAnswer {
+  question: string;
+  answer_text: string;
+  matched_faq: AgentAnswer | null;
+  aspects: QuickAspect[];
+  related_reviews: {
+    review_id: string;
+    similarity: number;
+    rating: number;
+    date: string;
+    title: string;
+    text: string;
+    text_ko: string | null;
+    labels: string[];
+  }[];
+  analyzed_reviews: number;
+  is_small_sample: boolean;
+  latency_ms: number;
+}
+
+export async function quickAnswer(id: string, question: string): Promise<QuickAnswer> {
+  const response = await fetch(`/api/v1/products/${id}/quick-answer`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(typeof body.detail === "string" ? body.detail : `즉시 답변 실패 (${response.status})`);
+  }
+  return response.json();
+}

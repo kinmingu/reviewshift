@@ -336,6 +336,8 @@ mark.neutral, mark.uncertain { background: var(--highlight); }
 .bubble.bot { align-self: flex-start; background: var(--card); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
 .bubble.bot .ask-answer { margin: 6px 0; }
 .bubble .quote { border-left-color: var(--ai); font-size: 13px; }
+.bubble .quote.negative { border-left-color: var(--negative); }
+.bubble .quote.positive { border-left-color: var(--positive); }
 .bubble details { margin-top: 6px; }
 .bubble-meta { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; cursor: pointer; }
 .error-bubble { color: var(--negative); }

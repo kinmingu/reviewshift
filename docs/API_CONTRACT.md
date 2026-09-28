@@ -191,3 +191,11 @@ HTTP API와 같은 서비스를 호출하는 읽기 전용 도구다. 서버 안
 - `level=watch`: 보정 전 p < 0.05(이상징후 제외)
 - 두 달 중 한 달이라도 분석 성공 10건 미만이면 판정하지 않고 `pairs_insufficient`로 센다.
 - 결과는 서버에서 2분간 캐시한다. `method_version=anomaly-fisher-bh-v1`
+
+## POST `/api/v1/products/{product_id}/quick-answer`
+
+LLM 없이 1초 안팎으로 답하는 즉시 답변. 본문 `{"question": "..."}`. MCP 도구 `quick_answer`를 같은 프로세스
+MCP 연결로 호출한다. 질문 임베딩(bge-m3) 1회로 ① 가까운 FAQ(유사도 0.80 이상, 최신일 때 저장 답 포함) ② 가까운 분석
+항목 2개의 SQL 집계(언급·좋아요·아쉬워요 리뷰 수)와 대표 근거 ③ 상품·저장 월로 제한한 pgvector 관련 리뷰 4건을
+돌려준다. `answer_text`는 DB 값으로 만든 요약이며 수치를 새로 계산하지 않는다. 없는 상품 404, 질문 길이 422,
+임베딩 모델 오류 503. 화면은 즉시 답을 먼저 보여 주고 'AI에게 자세히 묻기'에서 `/questions`를 호출한다.

@@ -23,6 +23,7 @@ from backend.app.core.database import SessionLocal
 from backend.app.services.answer_store import AnswerStore
 from backend.app.services.catalog import CatalogService, ProductNotFoundError
 from backend.app.services.embeddings import EmbeddingError
+from backend.app.services.quick_answer import QuickAnswerService
 from backend.app.services.review_search import ReviewSearchService
 
 INSTRUCTIONS = """ReviewShift는 Amazon Reviews 2023 실제 리뷰(상품별 연속 3개월)를 분석한 리뷰 리포트 서비스입니다.
@@ -165,6 +166,21 @@ def get_faq_answers(product_id: str) -> dict[str, Any]:
         except ProductNotFoundError as exc:
             raise _not_found(product_id) from exc
     return faq.model_dump(mode="json")
+
+
+# === [도구 6] 즉시 답변: LLM 없이 DB 분석 결과·관련 리뷰로 답 구성 ===
+@server.tool(annotations=READ_ONLY)
+def quick_answer(product_id: str, question: str) -> dict[str, Any]:
+    """질문과 관련된 분석 항목의 리뷰 수·대표 근거, 비슷한 실제 리뷰, 가까운 FAQ 답을 1초 안에 돌려줍니다."""
+    with SessionLocal() as session:
+        try:
+            return QuickAnswerService(session).answer(product_id, question)
+        except ProductNotFoundError as exc:
+            raise _not_found(product_id) from exc
+        except EmbeddingError as exc:
+            raise ToolError(f"임베딩 모델을 사용할 수 없습니다: {exc}") from exc
+        except ValueError as exc:
+            raise ToolError(str(exc)) from exc
 
 
 if __name__ == "__main__":

@@ -2,22 +2,26 @@
 // [리뷰 챗봇] 하단 고정 바 → 대화 창 (RAG: 리뷰 검색 + SQL 리포트 → 답변)
 // - 질문마다 서버 Agent(LangGraph)가 MCP 도구로 리포트·관련 리뷰를 조회해 답하고, 인용 리뷰 ID·수치를 검증한 답만 보여 줍니다.
 // - 이전 대화는 문맥으로만 함께 보냅니다(숫자·근거는 매번 새로 조회).
-// - 자주 묻는 질문은 미리 만들어 저장한 답을 즉시 보여 주고, 처음 보는 질문만 실시간으로 답합니다.
-// - 실시간 답변은 CPU 로컬 모델이라 1~4분 걸릴 수 있어 경과 시간을 표시합니다.
+// - 질문을 보내면 먼저 '즉시 답'(LLM 없이 DB 분석 결과·관련 리뷰, MCP 도구 quick_answer)을 1초 안에 보여 줍니다.
+// - 자연스러운 설명이 필요하면 'AI에게 자세히 묻기'로 실시간 AI 답변(CPU 1~3분)을 받습니다.
+// - 자주 묻는 질문은 미리 만들어 저장한 답을 즉시 보여 줍니다.
 // =====================================================================
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
-import { askQuestion, fetchFaq, type AgentAnswer, type FaqItem } from "../api";
+import { askQuestion, fetchFaq, quickAnswer, type AgentAnswer, type FaqItem, type QuickAnswer } from "../api";
 import { dateLabel } from "../lib/format";
 
 type Message =
   | { role: "user"; content: string }
   | { role: "assistant"; content: string; result: AgentAnswer }
+  | { role: "quick"; content: string; result: QuickAnswer }
   | { role: "error"; content: string };
 
 const TYPING_HINT = "이거 샀는데 금방 고장 났어요. 원래 이런 문제가 있나요?";
+const POLARITY_KO: Record<string, string> = { positive: "좋아요", negative: "아쉬워요" };
 const TOOL_NAMES: Record<string, string> = {
+  quick_answer: "즉시 답(리뷰 데이터)",
   get_product_report: "리뷰 리포트 집계",
   search_reviews: "관련 리뷰 검색",
 };
@@ -99,6 +103,57 @@ function AnswerBubble({ result }: { result: AgentAnswer }) {
   );
 }
 
+// === [즉시 답 말풍선] DB 정리 결과(항목별 리뷰 수·대표 근거)와 비슷한 실제 리뷰 ===
+const clean = (value: string) => value.replace(/<br\s*\/?>/gi, " ");
+
+function QuickBubble({ result, onDeep, busy }: { result: QuickAnswer; onDeep: () => void; busy: boolean }) {
+  return (
+    <div className="bubble bot">
+      <div className="tags" style={{ marginTop: 0 }}>
+        <span className="badge done">즉시 답 · 리뷰 데이터 기준 · {(result.latency_ms / 1000).toFixed(1)}초</span>
+        {result.is_small_sample && <span className="badge ai">분석 리뷰가 적어 참고용</span>}
+      </div>
+      <p className="ask-answer">{result.answer_text}</p>
+      {result.aspects.some((aspect) => aspect.examples.length > 0) && (
+        <details open>
+          <summary className="bubble-meta">항목별 대표 근거</summary>
+          {result.aspects.flatMap((aspect) =>
+            aspect.examples.map((example) => (
+              <blockquote
+                key={`${aspect.detail_label}-${example.review_id}-${example.polarity}`}
+                className={`quote ${example.polarity}`}
+              >
+                “{clean(example.evidence)}”
+                <small>
+                  {aspect.name_ko} · {POLARITY_KO[example.polarity]} · ★{example.rating} · {example.date}
+                </small>
+              </blockquote>
+            )),
+          )}
+        </details>
+      )}
+      {result.related_reviews.length > 0 && (
+        <details>
+          <summary className="bubble-meta">질문과 비슷한 실제 리뷰 {result.related_reviews.length}건</summary>
+          {result.related_reviews.map((review) => (
+            <blockquote key={review.review_id} className="quote">
+              {clean(review.text_ko ?? review.text)}
+              <small>
+                ★{review.rating} · {review.date}
+                {review.text_ko ? " · 자동 번역" : ""}
+                {review.labels.length > 0 && ` · ${review.labels.slice(0, 3).join(", ")}`}
+              </small>
+            </blockquote>
+          ))}
+        </details>
+      )}
+      <button className="chip" style={{ marginTop: 10 }} onClick={onDeep} disabled={busy}>
+        ✦ AI에게 자세히 묻기 (1~3분)
+      </button>
+    </div>
+  );
+}
+
 export default function AskPanel({ productId, productName }: { productId: string; productName: string }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -123,17 +178,38 @@ export default function AskPanel({ productId, productName }: { productId: string
     onError: (error) => setMessages((previous) => [...previous, { role: "error", content: (error as Error).message }]),
   });
 
-  const send = (value: string) => {
-    const question = value.trim();
-    if (question.length < 2 || ask.isPending) return;
-    // 검증을 통과한 답변과 사용자 질문만 문맥으로 보냅니다(최근 6개).
-    const history = messages
+  // === [AI에게 자세히 묻기] 실시간 AI 답변(CPU 1~3분). 이번 질문 앞의 대화만 문맥으로 보냅니다 ===
+  const deep = (question: string) => {
+    if (ask.isPending) return;
+    const lastIndex = messages.map((message) => message.content).lastIndexOf(question);
+    const before = lastIndex >= 0 ? messages.slice(0, lastIndex) : messages;
+    const history = before
       .filter((message) => message.role === "user" || (message.role === "assistant" && message.result.status === "answered"))
       .map((message) => ({ role: message.role as "user" | "assistant", content: message.content }))
       .slice(-6);
+    ask.mutate({ question, history });
+  };
+
+  // === [질문 보내기] 먼저 즉시 답(1초), 실패하면 AI 답변으로 넘어갑니다 ===
+  const quick = useMutation({
+    mutationFn: (question: string) => quickAnswer(productId, question),
+    onSuccess: (result) =>
+      setMessages((previous) => [
+        ...previous,
+        ...(result.matched_faq
+          ? [{ role: "assistant" as const, content: result.matched_faq.answer ?? "", result: result.matched_faq }]
+          : []),
+        { role: "quick" as const, content: result.answer_text, result },
+      ]),
+    onError: (_error, question) => deep(question),
+  });
+
+  const send = (value: string) => {
+    const question = value.trim();
+    if (question.length < 2 || ask.isPending || quick.isPending) return;
     setMessages((previous) => [...previous, { role: "user", content: question }]);
     setInput("");
-    ask.mutate({ question, history });
+    quick.mutate(question);
   };
 
   // === [자주 묻는 질문 선택] 저장된 최신 답이 있으면 즉시, 없으면 실시간으로 묻습니다 ===
@@ -181,7 +257,10 @@ export default function AskPanel({ productId, productName }: { productId: string
               <div className="bubble bot">
                 산 제품에 문제가 있거나 사기 전에 궁금한 점을 물어보세요. 다른 구매자 리뷰를 찾아서 비슷한 사례가
                 있는지, 얼마나 자주 나오는지 알려 드려요.
-                <small className="bubble-meta">⚡ 표시는 미리 준비된 답이라 바로 나와요.</small>
+                <small className="bubble-meta">
+                  질문하면 리뷰 데이터로 먼저 바로 답하고, 더 자세한 설명은 AI에게 따로 물을 수 있어요. ⚡ 표시는
+                  미리 준비된 답이에요.
+                </small>
               </div>
             )}
             {messages.map((message, index) =>
@@ -191,11 +270,23 @@ export default function AskPanel({ productId, productName }: { productId: string
                 </div>
               ) : message.role === "assistant" ? (
                 <AnswerBubble key={index} result={message.result} />
+              ) : message.role === "quick" ? (
+                <QuickBubble
+                  key={index}
+                  result={message.result}
+                  busy={ask.isPending}
+                  onDeep={() => deep(message.result.question)}
+                />
               ) : (
                 <div key={index} className="bubble bot error-bubble">
                   답변을 받지 못했어요: {message.content}
                 </div>
               ),
+            )}
+            {quick.isPending && (
+              <div className="bubble bot">
+                <span className="badge done">리뷰 데이터에서 찾는 중…</span>
+              </div>
             )}
             {ask.isPending && (
               <div className="bubble bot">
