@@ -289,10 +289,6 @@ mark.neutral, mark.uncertain { background: var(--highlight); }
 .link-btn { border: 0; background: none; color: var(--ai); font-weight: 600; font-size: 13px; padding: 0; }
 .more { width: 100%; margin-top: 12px; padding: 12px; border: 1px solid var(--line); background: var(--card); border-radius: var(--radius-sm); font-weight: 600; color: var(--ink-soft); }
 
-/* === [하단 고정 바] 구매 버튼 대신 AI 질문 === */
-.dock { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(250, 248, 245, 0.95); backdrop-filter: blur(8px); border-top: 1px solid var(--line); z-index: 20; }
-.dock-inner { max-width: 1180px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 14px; }
-.dock p { margin: 0; font-size: 13px; color: var(--muted); flex: 1; }
 .ask { border: 0; background: var(--ai); color: #fff; font-weight: 700; padding: 14px 26px; border-radius: var(--radius-md); font-size: 15px; }
 .ask:disabled { background: #c9bfff; cursor: not-allowed; }
 
@@ -348,6 +344,34 @@ mark.neutral, mark.uncertain { background: var(--highlight); }
 .faq-row .chip { white-space: nowrap; }
 .ask-sheet.chat .faq-row + .ask-form { border-top: 0; }
 
+/* === [떠 있는 리뷰 챗봇] 오른쪽 아래 버튼 + 대화 창 === */
+.chat-fab {
+  position: fixed; right: 24px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+  display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 22px 0 18px;
+  border: 0; border-radius: 999px; background: var(--ai); color: #fff; font-weight: 700; font-size: 15px;
+  box-shadow: 0 12px 32px rgba(124, 92, 255, 0.38); cursor: pointer; transition: transform 0.15s ease;
+}
+.chat-fab:hover { transform: translateY(-2px); }
+.chat-fab.open { width: 56px; padding: 0; justify-content: center; background: var(--ink); box-shadow: 0 12px 32px rgba(31, 42, 68, 0.3); }
+.chat-panel {
+  position: fixed; right: 24px; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+  width: min(420px, calc(100vw - 32px)); height: min(640px, calc(100vh - 130px));
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg);
+  box-shadow: 0 24px 64px rgba(31, 42, 68, 0.24);
+}
+.chat-panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line); font-size: 16px; }
+.chat-panel-head small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-panel-actions { display: flex; gap: 12px; flex-shrink: 0; padding-top: 2px; }
+.chat-panel .ask-form { margin: 0; padding: 12px 14px; border-top: 1px solid var(--line); background: var(--card); }
+.chat-panel .faq-row + .ask-form { border-top: 0; }
+.chat-product { display: flex; align-items: center; gap: 10px; margin-top: 8px; text-align: left; }
+.chat-product img, .chat-product-img { width: 44px; height: 44px; object-fit: contain; border-radius: 8px; background: #fff; border: 1px solid var(--line); flex-shrink: 0; }
+.chat-product b { display: block; font-size: 13px; line-height: 1.4; }
+.chat-product small { display: block; font-size: 12px; color: var(--muted); }
+.chat-candidate { display: block; width: 100%; margin-top: 8px; padding: 2px 10px 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper); font: inherit; color: inherit; cursor: pointer; }
+.chat-candidate:hover { border-color: var(--ai); background: var(--ai-soft); }
+
 /* === [리뷰 의미 검색] === */
 .semantic { display: flex; gap: 8px; margin-bottom: 12px; }
 .semantic input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px; font: inherit; background: var(--paper); }
@@ -374,6 +398,9 @@ mark.neutral, mark.uncertain { background: var(--highlight); }
   .header-note { display: none; }
 }
 @media (max-width: 560px) {
+  .chat-fab { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); height: 52px; }
+  .chat-fab.open { width: 52px; }
+  .chat-panel { right: 8px; left: 8px; width: auto; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); height: calc(100vh - 100px); }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .card-media { padding: 12px; }
   .summary-stats { grid-template-columns: 1fr; }
@@ -381,7 +408,6 @@ mark.neutral, mark.uncertain { background: var(--highlight); }
   .page { padding: 16px 14px 150px; }
   .header-inner { padding: 12px 14px; gap: 10px; }
   .logo { font-size: 16px; }
-  .dock-inner { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 14px; }
   .ask { width: 100%; }
   .hero h1 { font-size: 22px; }
   .panel { padding: 18px; }

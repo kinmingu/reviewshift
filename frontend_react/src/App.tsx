@@ -2,10 +2,12 @@
 // [앱 레이아웃] 상단 헤더(로고·검색) + 페이지 라우팅
 //   /                 카테고리 → 상품 목록
 //   /products/:id     상품 상세(리뷰 리포트)
+//   모든 화면 오른쪽 아래: 리뷰 챗봇(제품 이름·ID로 제품을 고른 뒤 질문)
 // =====================================================================
 import { useState, type FormEvent } from "react";
 import { Link, Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
 
+import ChatWidget from "./components/ChatWidget";
 import CatalogPage from "./pages/CatalogPage";
 import ProductPage from "./pages/ProductPage";
 
@@ -57,6 +59,7 @@ export default function App() {
         <Route path="/" element={<CatalogPage />} />
         <Route path="/products/:productId" element={<ProductPage />} />
       </Routes>
+      <ChatWidget />
     </>
   );
 }

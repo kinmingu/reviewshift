@@ -3,14 +3,13 @@
 //   1. 상품 정보(이미지·이름·평점)       2. 한눈에 보는 리뷰 + AI 리뷰 요약(미리 생성)
 //   3. 사람들이 말하는 포인트(항목별)     4. 자주 나오는 아쉬운 점 TOP 3(근거 인용)
 //   5. 최근 두 달 변화                    6. 별점 분포 · 월별 흐름
-//   7. 리뷰 원문(의미 검색 포함)          8. 하단 고정 바(리뷰 챗봇)
+//   7. 리뷰 원문(의미 검색 포함)          (리뷰 챗봇은 모든 화면 오른쪽 아래 ChatWidget)
 // 모든 수치는 서버 SQL 집계값이며 화면에서 새로 계산하지 않습니다.
 // =====================================================================
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { api, fetchFaq, type FaqResponse, type ProductDetail, type ProductInsights } from "../api";
-import AskPanel from "../components/AskPanel";
 import { AnalysisBadge } from "../components/ProductCard";
 import ReviewList from "../components/ReviewList";
 import { categoryName, dateLabel, labelName, monthLabel, percent } from "../lib/format";
@@ -378,8 +377,6 @@ export default function ProductPage() {
         {insights.data.analysis.prompt_version ?? "–"} · 데이터 {insights.data.data_version}
       </p>
 
-      {/* === [8. 하단 고정 바] 구매 버튼 대신 AI 질문(근거 인용형 Agent) === */}
-      <AskPanel productId={productId} productName={product.data.title_ko ?? product.data.title} />
     </main>
   );
 }

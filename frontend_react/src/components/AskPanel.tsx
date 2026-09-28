@@ -1,5 +1,6 @@
 // =====================================================================
-// [리뷰 챗봇] 하단 고정 바 → 대화 창 (RAG: 리뷰 검색 + SQL 리포트 → 답변)
+// [리뷰 챗봇 대화] 선택한 제품 하나에 대한 대화 본문 (RAG: 리뷰 검색 + SQL 리포트 → 답변)
+// - 화면 오른쪽 아래의 떠 있는 챗봇 창(ChatWidget)이 제품을 고른 뒤 이 컴포넌트를 보여 줍니다.
 // - 질문마다 서버 Agent(LangGraph)가 MCP 도구로 리포트·관련 리뷰를 조회해 답하고, 인용 리뷰 ID·수치를 검증한 답만 보여 줍니다.
 // - 이전 대화는 문맥으로만 함께 보냅니다(숫자·근거는 매번 새로 조회).
 // - 질문을 보내면 먼저 '즉시 답'(LLM 없이 DB 분석 결과·관련 리뷰, MCP 도구 quick_answer)을 1초 안에 보여 줍니다.
@@ -7,7 +8,7 @@
 // - 자주 묻는 질문은 미리 만들어 저장한 답을 즉시 보여 줍니다.
 // =====================================================================
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { askQuestion, fetchFaq, quickAnswer, type AgentAnswer, type FaqItem, type QuickAnswer } from "../api";
 import { dateLabel } from "../lib/format";
@@ -154,8 +155,23 @@ function QuickBubble({ result, onDeep, busy }: { result: QuickAnswer; onDeep: ()
   );
 }
 
-export default function AskPanel({ productId, productName }: { productId: string; productName: string }) {
-  const [open, setOpen] = useState(false);
+export function clearChat(productId: string) {
+  try {
+    sessionStorage.removeItem(storageKey(productId));
+  } catch {
+    // 저장소를 쓸 수 없는 브라우저에서는 대화가 화면에만 남습니다.
+  }
+}
+
+export default function ProductChat({
+  productId,
+  initialQuestion,
+  intro,
+}: {
+  productId: string;
+  initialQuestion?: string | null;
+  intro?: ReactNode;
+}) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>(() => loadMessages(productId));
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -163,7 +179,11 @@ export default function AskPanel({ productId, productName }: { productId: string
   const faq = useQuery({ queryKey: ["faq", productId], queryFn: () => fetchFaq(productId) });
 
   useEffect(() => {
-    sessionStorage.setItem(storageKey(productId), JSON.stringify(messages));
+    try {
+      sessionStorage.setItem(storageKey(productId), JSON.stringify(messages));
+    } catch {
+      // 저장 실패는 무시합니다(대화는 화면에 그대로 있음).
+    }
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, productId]);
 
@@ -227,122 +247,101 @@ export default function AskPanel({ productId, productName }: { productId: string
     send(item.question);
   };
 
+  // === [첫 질문] 제품 이름과 함께 입력한 질문은 제품을 고르자마자 바로 보냅니다 ===
+  const sentInitial = useRef(false);
+  useEffect(() => {
+    if (initialQuestion && !sentInitial.current) {
+      sentInitial.current = true;
+      send(initialQuestion);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuestion]);
+
   const faqButtons = (faq.data?.items ?? []).filter((item) => item.key !== "summary");
 
   return (
     <>
-      {open && (
-        <div className="ask-sheet chat" role="dialog" aria-label="리뷰 챗봇">
-          {/* === [헤더] === */}
-          <div className="ask-sheet-head">
-            <div>
-              <b>리뷰 챗봇</b>
-              <small className="bubble-meta">{productName} · 실제 리뷰 근거로만 답해요</small>
-            </div>
-            <div style={{ display: "flex", gap: 12 }}>
-              {messages.length > 0 && !ask.isPending && (
-                <button className="link-btn" onClick={() => setMessages([])}>
-                  새 대화
-                </button>
-              )}
-              <button className="link-btn" onClick={() => setOpen(false)}>
-                닫기
-              </button>
-            </div>
+      {/* === [대화 내용] === */}
+      <div className="chat-log">
+        {intro}
+        {messages.length === 0 && (
+          <div className="bubble bot">
+            산 제품에 문제가 있거나 사기 전에 궁금한 점을 물어보세요. 다른 구매자 리뷰를 찾아서 비슷한 사례가
+            있는지, 얼마나 자주 나오는지 알려 드려요.
+            <small className="bubble-meta">
+              질문하면 리뷰 데이터로 먼저 바로 답하고, 더 자세한 설명은 AI에게 따로 물을 수 있어요. ⚡ 표시는
+              미리 준비된 답이에요.
+            </small>
           </div>
-
-          {/* === [대화 내용] === */}
-          <div className="chat-log">
-            {messages.length === 0 && (
-              <div className="bubble bot">
-                산 제품에 문제가 있거나 사기 전에 궁금한 점을 물어보세요. 다른 구매자 리뷰를 찾아서 비슷한 사례가
-                있는지, 얼마나 자주 나오는지 알려 드려요.
-                <small className="bubble-meta">
-                  질문하면 리뷰 데이터로 먼저 바로 답하고, 더 자세한 설명은 AI에게 따로 물을 수 있어요. ⚡ 표시는
-                  미리 준비된 답이에요.
-                </small>
-              </div>
-            )}
-            {messages.map((message, index) =>
-              message.role === "user" ? (
-                <div key={index} className="bubble me">
-                  {message.content}
-                </div>
-              ) : message.role === "assistant" ? (
-                <AnswerBubble key={index} result={message.result} />
-              ) : message.role === "quick" ? (
-                <QuickBubble
-                  key={index}
-                  result={message.result}
-                  busy={ask.isPending}
-                  onDeep={() => deep(message.result.question)}
-                />
-              ) : (
-                <div key={index} className="bubble bot error-bubble">
-                  답변을 받지 못했어요: {message.content}
-                </div>
-              ),
-            )}
-            {quick.isPending && (
-              <div className="bubble bot">
-                <span className="badge done">리뷰 데이터에서 찾는 중…</span>
-              </div>
-            )}
-            {ask.isPending && (
-              <div className="bubble bot">
-                <span className="badge ai">
-                  리뷰를 찾아 읽는 중 · <Elapsed />
-                </span>
-                <small className="bubble-meta">로컬 CPU 모델이라 1~4분 걸릴 수 있어요.</small>
-              </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-
-          {/* === [자주 묻는 질문 버튼] 입력창 바로 위, 대화 중에도 언제든 누를 수 있습니다 === */}
-          {faqButtons.length > 0 && (
-            <div className="tags faq-row">
-              {faqButtons.map((item) => (
-                <button key={item.key} className="chip" onClick={() => pickFaq(item)} disabled={ask.isPending}>
-                  {item.answer && !item.answer.is_stale ? "⚡ " : ""}
-                  {item.label}
-                </button>
-              ))}
+        )}
+        {messages.map((message, index) =>
+          message.role === "user" ? (
+            <div key={index} className="bubble me">
+              {message.content}
             </div>
-          )}
-
-          {/* === [입력창] === */}
-          <form
-            className="ask-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              send(input);
-            }}
-          >
-            <input
-              value={input}
-              maxLength={500}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder={ask.isPending ? "답변을 기다리는 중이에요" : `예: ${TYPING_HINT}`}
-              aria-label="질문"
-              disabled={ask.isPending}
+          ) : message.role === "assistant" ? (
+            <AnswerBubble key={index} result={message.result} />
+          ) : message.role === "quick" ? (
+            <QuickBubble
+              key={index}
+              result={message.result}
+              busy={ask.isPending}
+              onDeep={() => deep(message.result.question)}
             />
-            <button className="ask" disabled={ask.isPending || input.trim().length < 2}>
-              보내기
+          ) : (
+            <div key={index} className="bubble bot error-bubble">
+              답변을 받지 못했어요: {message.content}
+            </div>
+          ),
+        )}
+        {quick.isPending && (
+          <div className="bubble bot">
+            <span className="badge done">리뷰 데이터에서 찾는 중…</span>
+          </div>
+        )}
+        {ask.isPending && (
+          <div className="bubble bot">
+            <span className="badge ai">
+              리뷰를 찾아 읽는 중 · <Elapsed />
+            </span>
+            <small className="bubble-meta">로컬 CPU 모델이라 1~4분 걸릴 수 있어요.</small>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* === [자주 묻는 질문 버튼] 입력창 바로 위, 대화 중에도 언제든 누를 수 있습니다 === */}
+      {faqButtons.length > 0 && (
+        <div className="tags faq-row">
+          {faqButtons.map((item) => (
+            <button key={item.key} className="chip" onClick={() => pickFaq(item)} disabled={ask.isPending}>
+              {item.answer && !item.answer.is_stale ? "⚡ " : ""}
+              {item.label}
             </button>
-          </form>
+          ))}
         </div>
       )}
 
-      {/* === [하단 고정 바] 구매 버튼 자리에 리뷰 챗봇 === */}
-      <div className="dock">
-        <div className="dock-inner">
-          <p>이 제품 샀는데 문제가 있나요? 다른 구매자 리뷰를 근거로 AI가 답해 드려요.</p>
-          <button className="ask" onClick={() => setOpen(!open)}>
-            {open ? "챗봇 닫기" : `리뷰 챗봇에게 물어보기${messages.length ? ` (${messages.filter((m) => m.role === "user").length})` : ""}`}
-          </button>
-        </div>
-      </div>
+      {/* === [입력창] === */}
+      <form
+        className="ask-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          send(input);
+        }}
+      >
+        <input
+          value={input}
+          maxLength={500}
+          onChange={(event) => setInput(event.target.value)}
+          placeholder={ask.isPending ? "답변을 기다리는 중이에요" : `예: ${TYPING_HINT}`}
+          aria-label="질문"
+          disabled={ask.isPending}
+        />
+        <button className="ask" disabled={ask.isPending || input.trim().length < 2}>
+          보내기
+        </button>
+      </form>
     </>
   );
 }

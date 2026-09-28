@@ -297,7 +297,7 @@ claude mcp add reviewshift -- C:\workspaces\ag_f_prj\.venv\Scripts\python.exe -m
 
 ### 챗봇의 MCP 도구 호출
 
-상품 상세의 리뷰 챗봇(LangGraph)은 위 MCP 서버의 `get_product_report`, `search_reviews` 도구를 MCP 프로토콜로
+모든 화면 오른쪽 아래의 리뷰 챗봇(LangGraph)은 위 MCP 서버의 `get_product_report`, `search_reviews` 도구를 MCP 프로토콜로
 호출한다. 질문마다 MCP 서버를 별도 프로세스로 띄워 stdio로 연결하고(약 2~4초 추가), 도구 결과로 답을 만든 뒤
 인용·수치를 검증한다. 화면의 도구 기록에 `[MCP]`로 표시된다. `.env`의 `AGENT_TOOL_TRANSPORT`로 바꿀 수 있다
 (`mcp_stdio` 기본, `mcp_memory` 같은 프로세스 MCP 연결, `direct` 함수 직접 호출).
