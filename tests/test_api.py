@@ -1,3 +1,5 @@
+"""API 통합 테스트: 상품 목록·검색·상세·리포트·두 달 비교·리뷰 목록 응답과 오류 코드(404·422)를 확인."""
+
 import pytest
 from fastapi.testclient import TestClient
 

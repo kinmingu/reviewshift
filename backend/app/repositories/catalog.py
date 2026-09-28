@@ -1,3 +1,8 @@
+"""DB 조회 계층(SQL): 상품·리뷰·분석 결과·벡터 검색 쿼리를 모아 둔 곳.
+
+여기서는 숫자를 세고 모으기만 하고, 비율 계산·판정은 services/catalog.py가 합니다.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Collection
@@ -23,6 +28,7 @@ def _scope(review_ids: Collection[str] | None) -> list:
     return [] if review_ids is None else [Review.id.in_(list(review_ids))]
 
 
+# 항목 × 감성별 리뷰 수 집계 한 줄.
 @dataclass(frozen=True)
 class LabelAggregate:
     aspect: str
@@ -32,6 +38,7 @@ class LabelAggregate:
     review_ids: tuple[str, ...]
 
 
+# 월별 리뷰 수·평균 별점 집계 한 줄.
 @dataclass(frozen=True)
 class MonthlyReviewAggregate:
     month: str
@@ -39,6 +46,7 @@ class MonthlyReviewAggregate:
     average_rating: float
 
 
+# 기간 안 리뷰의 분석 상태별 개수(성공·실패·진행 중).
 @dataclass(frozen=True)
 class AnalysisCoverageAggregate:
     total: int
@@ -48,10 +56,12 @@ class AnalysisCoverageAggregate:
     labeled: int
 
 
+# [상품 조회] 카테고리 목록, 상품 검색·목록, 월별 통계.
 class ProductRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    # 상품이 있는 카테고리 이름 목록.
     def categories(self, source_mode: str) -> list[str]:
         return list(
             self.session.scalars(
@@ -62,6 +72,7 @@ class ProductRepository:
             )
         )
 
+    # 검색어(영문명·한국어명·ASIN)와 카테고리로 상품을 찾고 전체 개수와 함께 돌려줍니다.
     def list(
         self,
         *,
@@ -99,9 +110,11 @@ class ProductRepository:
         )
         return items, total
 
+    # 상품 ID로 상품 하나를 가져옵니다.
     def get(self, product_id: str) -> Product | None:
         return self.session.get(Product, product_id)
 
+    # 상품의 분석 대상 리뷰 수.
     def review_count(self, product_id: str) -> int:
         return int(
             self.session.scalar(
@@ -112,9 +125,11 @@ class ProductRepository:
             or 0
         )
 
+    # 리뷰가 있는 달 목록(YYYY-MM).
     def available_months(self, product_id: str) -> list[str]:
         return [item.month for item in self.monthly_stats(product_id)]
 
+    # 달마다 리뷰 수와 평균 별점을 셉니다.
     def monthly_stats(self, product_id: str) -> list[MonthlyReviewAggregate]:
         # DB 세션 시간대와 무관하게 API의 UTC [월초, 다음 월초) 경계와 같은 월로 묶습니다.
         month = func.to_char(
@@ -134,10 +149,12 @@ class ProductRepository:
         ]
 
 
+# [리뷰 조회] 기간별 리뷰 수, 평균 별점, 라벨 집계, 리뷰 목록.
 class ReviewRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    # 기간 안 분석 대상 리뷰 수.
     def count_eligible(
         self,
         product_id: str,
@@ -158,6 +175,7 @@ class ReviewRepository:
             or 0
         )
 
+    # 기간 안 평균 별점(리뷰가 없으면 None).
     def average_rating(
         self, product_id: str, start: datetime, end: datetime
     ) -> float | None:
@@ -171,6 +189,7 @@ class ReviewRepository:
         )
         return float(value) if value is not None else None
 
+    # 기간 안에서 분석이 끝난 리뷰 수.
     def count_labeled(
         self,
         product_id: str,
@@ -195,6 +214,7 @@ class ReviewRepository:
             or 0
         )
 
+    # 기간 안 리뷰의 분석 진행 상황(성공·실패·진행 중).
     def analysis_coverage(
         self,
         product_id: str,
@@ -229,6 +249,7 @@ class ReviewRepository:
             labeled=self.count_labeled(product_id, start, end, run_id, review_ids),
         )
 
+    # 기간 안 라벨을 항목 × 감성별로 리뷰 수 집계합니다.
     def label_aggregates(
         self,
         product_id: str,
@@ -275,6 +296,7 @@ class ReviewRepository:
             for row in rows
         ]
 
+    # 리뷰 목록(항목·감성 필터, 페이지 단위)과 전체 개수.
     def list(
         self,
         *,
@@ -324,6 +346,7 @@ class ReviewRepository:
         return items, total
 
 
+# 라벨의 대표 근거 예시(리뷰 ID, 별점, 날짜, 근거 문장).
 @dataclass(frozen=True)
 class LabelExample:
     review_id: str
@@ -332,6 +355,7 @@ class LabelExample:
     evidence_span: str
 
 
+# 월별 분석 결과 집계(분석 수, 좋아요/아쉬워요 리뷰 수).
 @dataclass(frozen=True)
 class MonthlyAnalysisAggregate:
     month: str
@@ -345,6 +369,7 @@ class ProductInsightRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    # 별점 1~5점 각각의 리뷰 수.
     def rating_distribution(self, product_id: str) -> dict[int, int]:
         rows = self.session.execute(
             select(Review.rating, func.count(Review.id))
@@ -371,6 +396,7 @@ class ProductInsightRepository:
             )
         )
 
+    # 분석에 성공한 리뷰 수(표본 ID로 제한 가능).
     def succeeded_count(
         self, product_id: str, run_id: str, review_ids: Collection[str] | None = None
     ) -> int:
@@ -392,6 +418,7 @@ class ProductInsightRepository:
         ).all()
         return {str(polarity): int(count) for polarity, count in rows}
 
+    # 항목 × 세부 항목 × 감성별 리뷰 수.
     def label_counts(
         self, product_id: str, run_id: str, review_ids: Collection[str] | None = None
     ) -> list[tuple[str, str, str, int]]:
@@ -430,6 +457,7 @@ class ProductInsightRepository:
         ).all()
         return {(str(a), str(d)): int(c) for a, d, c in rows}
 
+    # 특정 항목·감성의 대표 근거 문장 예시를 가져옵니다.
     def label_examples(
         self,
         product_id: str,
@@ -465,6 +493,7 @@ class ProductInsightRepository:
                 break
         return examples
 
+    # 달마다 분석 수와 좋아요/아쉬워요 리뷰 수를 셉니다.
     def monthly_analysis(
         self, product_id: str, run_id: str, review_ids: Collection[str] | None = None
     ) -> list[MonthlyAnalysisAggregate]:
@@ -517,6 +546,7 @@ class ProductInsightRepository:
         ]
 
 
+# 벡터 검색 결과 한 건(리뷰와 코사인 거리).
 @dataclass(frozen=True)
 class SearchHit:
     review: Review
@@ -528,6 +558,7 @@ class ReviewSearchRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    # 질문 벡터와 가까운 리뷰를 pgvector로 찾습니다(상품·기간으로 먼저 거름).
     def search(
         self,
         *,
@@ -563,6 +594,7 @@ class ReviewSearchRepository:
         ).all()
         return [SearchHit(review=row[0], distance=float(row[1])) for row in rows]
 
+    # 기간 안에서 임베딩이 만들어진 리뷰 수.
     def embedded_count(self, product_id: str, start: datetime, end: datetime, model: str) -> int:
         return int(
             self.session.scalar(
@@ -580,10 +612,12 @@ class ReviewSearchRepository:
         )
 
 
+# [분석 실행 조회] 지금 화면에 쓰는 활성 분석 실행 찾기.
 class AnalysisRunRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    # 데이터 종류(실제/fixture)별 활성 분석 실행을 가져옵니다.
     def active(self, source_mode: str) -> AnalysisRun | None:
         return self.session.scalar(
             select(AnalysisRun)

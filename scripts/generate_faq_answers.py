@@ -31,6 +31,7 @@ DEMO_PRODUCTS = (
 )
 
 
+# 상품 × FAQ 질문마다 최신 답이 없으면 AI 에이전트로 만들어 저장하고, 결과 개수를 셉니다.
 def generate(product_ids: list[str], *, force: bool, only: set[str] | None = None) -> dict:
     counts = {"generated": 0, "skipped_fresh": 0, "failed": 0, "unavailable": 0}
     for product_id in product_ids:
@@ -64,6 +65,7 @@ def generate(product_ids: list[str], *, force: bool, only: set[str] | None = Non
     return counts
 
 
+# 대상 상품(특정/데모/전체)을 정해 FAQ 답 생성을 실행합니다.
 def main() -> None:
     parser = argparse.ArgumentParser(description="상품별 FAQ 답변을 미리 생성합니다.")
     parser.add_argument("--product-id", action="append", default=[])

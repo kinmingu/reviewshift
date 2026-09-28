@@ -1,3 +1,9 @@
+"""리뷰 AI 분류 실행기: 리뷰를 한 건씩 LLM으로 분류해 결과·라벨을 DB에 저장합니다.
+
+중단 후 다시 실행하면 성공한 리뷰는 건너뛰고 이어서 처리하며, 시도 횟수·오류 종류·걸린 시간을 기록합니다.
+예) python -m scripts.classify_reviews --run-id amazon-absa-qwen35-v3 --all
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -71,6 +77,7 @@ def ollama_model_identity(base_url: str, model: str) -> dict[str, Any]:
     return identity
 
 
+# JSON 파일에서 분류할 리뷰 ID 목록을 읽습니다.
 def load_review_ids(path: Path) -> list[str]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     review_ids = [str(value) for value in payload.get("review_ids", [])]
@@ -79,6 +86,7 @@ def load_review_ids(path: Path) -> list[str]:
     return review_ids
 
 
+# 공식 7개 카테고리의 분석 대상 리뷰 ID 전체.
 def official_review_ids(session: Session) -> list[str]:
     return list(
         session.scalars(
@@ -136,6 +144,7 @@ def product_month_review_ids(
 
 
 
+# 분석 실행(run)을 만들거나, 이미 있으면 버전이 같은지 확인하고 설정을 갱신합니다.
 def ensure_run(
     session: Session,
     *,
@@ -207,10 +216,12 @@ def ensure_run(
     return run
 
 
+# run × 리뷰로 분석 결과 행의 고유 ID를 만듭니다.
 def _result_id(run_id: str, review_id: str) -> str:
     return f"analysis:{hashlib.sha256(f'{run_id}|{review_id}'.encode()).hexdigest()}"
 
 
+# 리뷰의 분석 결과 행을 가져오거나 새로 만듭니다(입력이 바뀌었으면 다시 대기 상태로).
 def ensure_result(session: Session, run_id: str, review: Review) -> ReviewAnalysisResult:
     input_hash = review_input_hash(review.title, review.text)
     result = session.scalar(
@@ -254,6 +265,7 @@ def ensure_result(session: Session, run_id: str, review: Review) -> ReviewAnalys
     return result
 
 
+# 라벨 내용으로 라벨 행의 고유 ID를 만듭니다(같은 라벨이 중복 저장되지 않게).
 def _label_id(
     run_id: str, review_id: str, aspect: str, detail: str, polarity: str, evidence: str
 ) -> str:
@@ -261,6 +273,8 @@ def _label_id(
     return f"llm-label:{hashlib.sha256(value.encode()).hexdigest()}"
 
 
+# 리뷰 한 건을 분류합니다: 성공하면 라벨 저장, 실패하면 오류를 기록하고 정해진 횟수까지 재시도.
+# 돌려주는 값: 'succeeded' / 'failed' / 'skipped'(이미 성공).
 def process_review(
     *,
     run_id: str,
@@ -377,6 +391,7 @@ def process_review(
         return "failed"
 
 
+# 값 목록의 백분위수(예: 처리 시간 p50·p95).
 def _percentile(values: list[int], fraction: float) -> float | None:
     if not values:
         return None
@@ -385,6 +400,7 @@ def _percentile(values: list[int], fraction: float) -> float | None:
     return float(ordered[index])
 
 
+# 실행 결과 요약(성공·실패 수, 오류 종류별 수, 처리 시간 통계).
 def run_report(session: Session, run_id: str, review_ids: list[str]) -> dict[str, Any]:
     results = list(
         session.scalars(
@@ -455,6 +471,7 @@ def run_report(session: Session, run_id: str, review_ids: list[str]) -> dict[str
     }
 
 
+# 모든 리뷰 처리 상태를 보고 run 상태(진행 중/완료)를 갱신합니다.
 def refresh_run_status(session: Session, run_id: str) -> None:
     run = session.get(AnalysisRun, run_id)
     if run is None:
@@ -492,6 +509,7 @@ def refresh_run_status(session: Session, run_id: str) -> None:
     session.commit()
 
 
+# 시험 분류 결과를 사람이 확인할 수 있게 파일로 내보냅니다.
 def export_trial_predictions(
     session: Session, run_id: str, review_ids: list[str], output_path: Path
 ) -> None:
@@ -559,6 +577,7 @@ def export_trial_predictions(
         writer.writerows(rows)
 
 
+# 명령행 옵션을 읽어 대상 리뷰를 정하고 분류를 실행합니다.
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="영어 원문 리뷰를 Ollama로 항목별 감성 분류하고 결과를 재개 가능하게 저장합니다."

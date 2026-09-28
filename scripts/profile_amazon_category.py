@@ -1,3 +1,8 @@
+"""원본 카테고리 데이터를 상품 × 월 단위로 훑어, 연속 3개월 리뷰가 충분한 후보 상품을 찾는 스크립트.
+
+상품 선정(amazon_category_selection.json)의 근거 자료를 만듭니다. 감성(좋음/나쁨)은 선정 기준에 쓰지 않습니다.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -38,11 +43,13 @@ def shift_month(value: str, delta: int) -> str:
     return f"{index // 12:04d}-{index % 12 + 1:02d}"
 
 
+# 앞뒤 공백을 뺀 값이 비어 있지 않은지(Arrow 배열 단위).
 def _non_empty(values: pa.Array) -> pa.Array:
     trimmed = pc.utf8_trim_whitespace(values)
     return pc.fill_null(pc.not_equal(trimmed, ""), False)
 
 
+# 리뷰마다 별점·시각·본문이 온전한지 표시하는 마스크.
 def _validity_masks(batch: pa.RecordBatch) -> dict[str, pa.Array]:
     rating = batch.column(batch.schema.get_field_index("rating"))
     timestamp = batch.column(batch.schema.get_field_index("timestamp"))
@@ -70,10 +77,12 @@ def _validity_masks(batch: pa.RecordBatch) -> dict[str, pa.Array]:
     return masks
 
 
+# 마스크에서 참인 개수.
 def _true_count(mask: pa.Array) -> int:
     return int(pc.sum(pc.cast(mask, pa.int64())).as_py() or 0)
 
 
+# 카테고리 리뷰 Parquet 파일 경로 목록.
 def _review_paths(category: str, input_root: Path) -> list[Path]:
     source = CATEGORY_SOURCES[category]
     paths = [input_root / item.path for item in list_remote_files(source, "reviews")]
@@ -221,6 +230,7 @@ def rank_windows(
     return results
 
 
+# 후보 상품들의 상품정보를 읽습니다.
 def read_candidate_metadata(
     category: str,
     input_root: Path,
@@ -252,6 +262,7 @@ def read_candidate_metadata(
     return result
 
 
+# 상품정보에서 선정에 필요한 값만 남깁니다.
 def _compact_metadata(value: dict[str, Any]) -> dict[str, Any]:
     return {
         "title": value.get("title"),
@@ -265,6 +276,7 @@ def _compact_metadata(value: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# 카테고리를 훑어 상품·월별 리뷰 수를 세고 후보 목록을 저장합니다.
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="공식 Amazon Reviews 2023 카테고리를 상품·월 단위로 프로파일링합니다."

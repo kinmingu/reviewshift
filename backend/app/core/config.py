@@ -1,3 +1,5 @@
+"""환경 설정: .env 파일·환경 변수에서 DB 주소, 모델 이름, 분석 기준값 등을 읽습니다."""
+
 from functools import lru_cache
 from pathlib import Path
 
@@ -6,6 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
+# 설정 항목 정의(값이 없으면 기본값 사용, DATABASE_URL은 필수).
 class Settings(BaseSettings):
     app_name: str = "ReviewShift API"
     app_env: str = "development"
@@ -33,6 +36,7 @@ class Settings(BaseSettings):
     )
 
 
+# 현재 환경 변수로 설정 객체를 만들어 돌려줍니다.
 @lru_cache
 def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]

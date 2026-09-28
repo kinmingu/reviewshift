@@ -1,3 +1,9 @@
+"""리뷰 AI 분류기: LLM(Ollama qwen3.5)에게 리뷰를 보내 항목 × 감성 라벨을 받고, 결과를 엄격히 검증합니다.
+
+검증 내용: JSON 형식, 분류 체계에 있는 항목인지, 근거 문장이 리뷰 원문에 실제로 있는지(단어 경계·최소 길이).
+검증에 실패한 결과는 저장하지 않고 오류 종류를 기록합니다.
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -17,26 +23,32 @@ from backend.app.core.analysis_taxonomy import (
 PROMPT_VERSION = "absa-prompt-v3"
 
 
+# 분류 실패 오류의 공통 부모(error_type으로 실패 종류를 기록).
 class ClassificationError(RuntimeError):
     error_type = "classification_error"
 
 
+# 모델 호출 자체가 실패함(연결 오류·시간 초과).
 class ModelRequestError(ClassificationError):
     error_type = "model_request_error"
 
 
+# 모델 응답이 약속한 JSON 형식이 아님.
 class ResponseFormatError(ClassificationError):
     error_type = "response_format_error"
 
 
+# 분류 체계에 없는 항목 코드를 답함.
 class TaxonomyValidationError(ClassificationError):
     error_type = "taxonomy_validation_error"
 
 
+# 근거 문장이 리뷰 원문에 없거나 너무 짧음(지어낸 근거 차단).
 class EvidenceValidationError(ClassificationError):
     error_type = "evidence_validation_error"
 
 
+# 검증을 통과한 라벨 하나(항목, 세부 항목, 감성, 근거 문장).
 @dataclass(frozen=True)
 class ClassifiedLabel:
     aspect_code: str
@@ -45,6 +57,7 @@ class ClassifiedLabel:
     evidence_span: str
 
 
+# 리뷰 한 건의 분류 결과(라벨들, 모델 원문 응답, 속도 등 측정값).
 @dataclass(frozen=True)
 class ClassificationOutput:
     labels: tuple[ClassifiedLabel, ...]
@@ -52,6 +65,7 @@ class ClassificationOutput:
     model_metrics: dict[str, Any] = field(default_factory=dict)
 
 
+# 분류에 넣은 제목+본문의 해시(입력이 바뀌었는지 추적).
 def review_input_hash(title: str | None, text: str) -> str:
     source = f"{title or ''}\n{text}".encode("utf-8")
     return hashlib.sha256(source).hexdigest()
@@ -103,6 +117,7 @@ def _source_evidence(
     return None, "원문에서 찾을 수 없는 근거 구간입니다"
 
 
+# 모델 응답 JSON을 읽어 라벨마다 항목·감성·근거 문장을 검증하고 ClassifiedLabel 목록으로 만듭니다.
 def parse_classification(
     content: str,
     *,
@@ -162,6 +177,7 @@ def parse_classification(
     return ClassificationOutput(labels=tuple(labels), raw_response=content)
 
 
+# 모델에게 강제할 JSON 출력 형식(이 카테고리에서 허용된 항목 코드만 선택지로).
 def output_schema(category: str) -> dict[str, Any]:
     allowed = category_labels(category)
     return {
@@ -194,6 +210,7 @@ def output_schema(category: str) -> dict[str, Any]:
     }
 
 
+# [분류기] Ollama 모델에 분류 프롬프트를 보내고 검증된 결과를 돌려줍니다.
 class OllamaReviewClassifier:
     def __init__(
         self,
@@ -208,6 +225,7 @@ class OllamaReviewClassifier:
         self.timeout_seconds = timeout_seconds
         self.keep_alive = keep_alive
 
+    # 리뷰 한 건을 분류합니다. 직전 실패 사유가 있으면 모델에게 수정 지시로 함께 보냅니다.
     def classify(
         self,
         *,

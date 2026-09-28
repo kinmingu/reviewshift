@@ -1,3 +1,9 @@
+"""Streamlit 화면: 초기 상품 목록·두 달 비교 화면과, AI 정확도 측정을 위한 사람 평가(정답 라벨 작성) 화면.
+
+지금 사용자용 화면은 React(frontend_react)이고, 이 화면은 주로 사람 평가에 씁니다.
+실행: streamlit run frontend_streamlit/app.py
+"""
+
 from typing import Any
 
 import pandas as pd
@@ -8,6 +14,7 @@ from frontend_streamlit.api_client import ApiError, ReviewShiftClient
 st.set_page_config(page_title="ReviewShift", page_icon="📊", layout="wide")
 
 
+# API 클라이언트를 한 번만 만들어 재사용합니다.
 @st.cache_resource
 def get_client() -> ReviewShiftClient:
     return ReviewShiftClient()
@@ -30,11 +37,13 @@ CATEGORY_NAMES_KO = {
 }
 
 
+# 카테고리 키를 '한국어 (영문)' 표시로 바꿉니다.
 def category_label(category: str) -> str:
     korean = CATEGORY_NAMES_KO.get(category)
     return f"{korean} ({category})" if korean else category
 
 
+# 합성(fixture) 데이터인지 실제 데이터인지 화면 위에 알립니다.
 def source_notice(source_mode: str) -> None:
     if source_mode == "fixture":
         st.warning(
@@ -49,6 +58,7 @@ def source_notice(source_mode: str) -> None:
         )
 
 
+# 리뷰 한 건을 보여 줍니다(번역이 있으면 번역, AI 라벨과 근거 문장 표시).
 def render_review(review: dict[str, Any]) -> None:
     has_translation = bool(review.get("text_ko"))
     display_title = (
@@ -94,6 +104,7 @@ def render_review(review: dict[str, Any]) -> None:
         )
 
 
+# 상품 목록 화면(데이터 종류·카테고리·검색).
 def render_catalog() -> None:
     st.title("ReviewShift")
     st.caption("상품 리뷰의 월별 변화를 원문 근거와 함께 비교합니다.")
@@ -173,6 +184,7 @@ def render_catalog() -> None:
                     st.rerun()
 
 
+# 특정 달의 리뷰 원문 목록을 보여 줍니다.
 def _render_raw_month(product_id: str, month: str) -> None:
     response = client.reviews(product_id, month)
     st.caption(f"{month}: 원문 리뷰 {response['total']}건 (최대 100건 표시)")
@@ -181,6 +193,7 @@ def _render_raw_month(product_id: str, month: str) -> None:
             render_review(review)
 
 
+# 실제 데이터의 두 달 비교(항목별 불만 비율 변화)를 보여 줍니다.
 def _render_real_comparison(product: dict[str, Any]) -> None:
     months = product["available_months"]
     if len(months) < 2:
@@ -363,6 +376,7 @@ def _render_real_comparison(product: dict[str, Any]) -> None:
             _render_raw_month(product["id"], target_month)
 
 
+# 합성 데이터의 두 달 비교를 보여 줍니다.
 def _render_fixture_comparison(product: dict[str, Any]) -> None:
     months = product["available_months"]
     if len(months) < 2:
@@ -429,6 +443,7 @@ def _render_fixture_comparison(product: dict[str, Any]) -> None:
                     render_review(review)
 
 
+# 상품 상세 화면.
 def render_detail(product_id: str) -> None:
     if st.button("← 상품 목록"):
         st.session_state.selected_product_id = None
@@ -503,6 +518,7 @@ def render_detail(product_id: str) -> None:
     st.button("질문 보내기", disabled=True)
 
 
+# [사람 평가] 저장된 정답 라벨을 화면 입력값(선택 항목·감성·근거) 형태로 되돌립니다.
 def _saved_annotation_maps(item: dict[str, Any]) -> tuple[list[str], dict[str, list[str]], dict[str, str]]:
     selected_codes: list[str] = []
     sentiments: dict[str, list[str]] = {}
@@ -630,6 +646,7 @@ def render_evaluation() -> None:
         key=f"notes-{review['id']}",
     )
 
+    # [사람 평가] 현재 입력을 지정한 상태(완료/보류 등)로 저장합니다.
     def save(status_value: str) -> None:
         client.save_evaluation(
             EVALUATION_DATASET_ID,
@@ -674,6 +691,7 @@ def render_evaluation() -> None:
     )
 
 
+# 화면 시작점: 서버 상태를 확인하고 목록·상세·평가 화면 중 하나를 그립니다.
 def main() -> None:
     try:
         health = client.health()

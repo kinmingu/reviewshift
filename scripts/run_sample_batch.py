@@ -32,6 +32,7 @@ from scripts.classify_reviews import (
 STAGES: tuple[int | None, ...] = (20, 30, 50, 70, 100, None)  # None = 표본 전체(올림 배분분 포함)
 
 
+# 모든 공식 상품의 표본 계획을 만듭니다(표본 크기가 없는 상품이 있으면 오류).
 def load_plans() -> list[tuple[Product, SamplePlan]]:
     with SessionLocal() as session:
         products = session.scalars(
@@ -48,6 +49,7 @@ def load_plans() -> list[tuple[Product, SamplePlan]]:
     return plans
 
 
+# 단계(20→30→50→70→100→전체)마다 모든 상품의 표본을 채워 가며 분류하고, 마지막에 실패 건을 재시도합니다.
 def main() -> None:
     parser = argparse.ArgumentParser(description="상품별 AI 분석 표본을 단계별로 분류합니다.")
     parser.add_argument("--model", default="qwen3.5:latest")

@@ -56,6 +56,7 @@ def pending_reviews(model: str, product_id: str | None) -> list[tuple[str, str |
     ]
 
 
+# 모델 × 리뷰로 임베딩 행의 고유 ID를 만듭니다.
 def _embedding_id(model: str, review_id: str) -> str:
     return f"embedding:{hashlib.sha256(f'{model}|{review_id}'.encode()).hexdigest()}"
 
@@ -89,6 +90,7 @@ def save_batch(
         session.commit()
 
 
+# 임베딩이 없거나 본문이 바뀐 리뷰만 골라 벡터를 만들어 저장합니다.
 def main() -> None:
     parser = argparse.ArgumentParser(description="리뷰 임베딩(bge-m3)을 생성해 저장합니다.")
     parser.add_argument("--model", default=EMBEDDING_MODEL)

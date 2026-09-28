@@ -1,3 +1,5 @@
+"""Streamlit 화면 테스트: 목록·상세·평가 화면이 오류 없이 그려지는지 확인."""
+
 from pathlib import Path
 
 import pytest

@@ -80,6 +80,7 @@ CACHE_SECONDS = 120
 _cache: tuple[float, AnomalyReport] | None = None
 
 
+# 검정 결과를 120초 동안 재사용합니다(모든 상품을 다시 계산하지 않게).
 def cached_report(session: Session) -> AnomalyReport:
     global _cache
     now = time.monotonic()
@@ -88,6 +89,7 @@ def cached_report(session: Session) -> AnomalyReport:
     return _cache[1]
 
 
+# 검정 후보 하나: 상품 × 인접한 두 달 × 불만 항목.
 @dataclass
 class _Candidate:
     product: Product
@@ -98,6 +100,7 @@ class _Candidate:
     provisional: bool
 
 
+# 모든 상품의 인접한 두 달을 비교해 불만이 통계적으로 늘었는지 판정합니다.
 class AnomalyService:
     def __init__(
         self, session: Session, *, min_analyzed_per_month: int = MIN_ANALYZED_PER_MONTH
@@ -106,6 +109,7 @@ class AnomalyService:
         self.catalog = CatalogService(session)
         self.min_analyzed_per_month = min_analyzed_per_month
 
+    # 후보마다 Fisher 검정 p값을 구하고 BH 보정 q값으로 '이상/주의'를 판정해 목록을 돌려줍니다.
     def report(self, source_mode: str = "real") -> AnomalyReport:
         filters = [Product.source_mode == source_mode]
         if source_mode == "real":

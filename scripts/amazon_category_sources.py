@@ -1,3 +1,9 @@
+"""Amazon Reviews 2023(Hugging Face) 원본 파일 위치 정의.
+
+카테고리마다 리뷰·상품정보 Parquet 파일의 고정 리비전, 폴더, 예상 파일 수·크기를 적어
+언제 내려받아도 같은 데이터가 되도록 합니다.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -10,6 +16,7 @@ REPOSITORY = "McAuley-Lab/Amazon-Reviews-2023"
 TreeKind = Literal["reviews", "metadata"]
 
 
+# 리뷰 또는 상품정보 파일 묶음 하나의 위치와 예상 크기.
 @dataclass(frozen=True)
 class SourcePart:
     revision: str
@@ -18,6 +25,7 @@ class SourcePart:
     expected_size_bytes: int
 
 
+# 카테고리 하나의 원본 정보(리뷰 파일 + 상품정보 파일).
 @dataclass(frozen=True)
 class CategorySource:
     source_name: str
@@ -26,6 +34,7 @@ class CategorySource:
     metadata: SourcePart
 
 
+# 내려받을 Parquet 파일 하나(경로, 크기, 리비전, 해시).
 @dataclass(frozen=True)
 class RemoteParquet:
     path: str
@@ -33,6 +42,7 @@ class RemoteParquet:
     revision: str
     sha256: str | None
 
+    # Hugging Face 다운로드 주소.
     @property
     def url(self) -> str:
         encoded_path = "/".join(quote(part) for part in self.path.split("/"))
@@ -160,6 +170,7 @@ CATEGORY_SOURCES: dict[str, CategorySource] = {
 }
 
 
+# Hugging Face API로 카테고리의 파일 목록을 가져와 예상 개수·크기와 맞는지 확인합니다.
 def list_remote_files(source: CategorySource, kind: TreeKind) -> list[RemoteParquet]:
     part = source.reviews if kind == "reviews" else source.metadata
     api_url = (

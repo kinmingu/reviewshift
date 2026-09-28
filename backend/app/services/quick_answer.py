@@ -35,12 +35,14 @@ _aspect_vectors: dict[str, list[tuple[tuple[str, str], list[float]]]] = {}
 _faq_vectors: list[tuple[str, list[float]]] = []
 
 
+# 두 벡터의 코사인 유사도(1에 가까울수록 뜻이 비슷함).
 def _cosine(a: list[float], b: list[float]) -> float:
     dot = sum(x * y for x, y in zip(a, b, strict=True))
     norm = math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(y * y for y in b))
     return dot / norm if norm else 0.0
 
 
+# [즉시 답] 질문 벡터로 관련 분석 항목과 비슷한 리뷰를 찾아, DB 집계값만으로 답 문장을 만듭니다.
 class QuickAnswerService:
     def __init__(self, session: Session, embedder: OllamaEmbedder | None = None) -> None:
         self.session = session
@@ -64,6 +66,7 @@ class QuickAnswerService:
             _aspect_vectors[category] = list(zip(keys, self.embedder.embed(texts), strict=True))
         return _aspect_vectors[category]
 
+    # FAQ 질문들의 벡터(처음 한 번만 계산해 메모리에 보관).
     def _faqs(self) -> list[tuple[str, list[float]]]:
         if not _faq_vectors:
             keys = [key for key, _, _ in FAQ_QUESTIONS]

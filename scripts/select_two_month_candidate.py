@@ -1,3 +1,5 @@
+"""초기 두 달 비교 데모에 쓸 상품 후보를 SQL로 찾는 스크립트."""
+
 from __future__ import annotations
 
 import json
@@ -51,6 +53,7 @@ QUERY = text(
 )
 
 
+# 조건에 맞는 후보 상품 목록을 DB에서 가져옵니다.
 def candidates() -> list[dict[str, Any]]:
     with SessionLocal() as session:
         rows = session.execute(QUERY).mappings().all()

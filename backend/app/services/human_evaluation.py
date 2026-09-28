@@ -1,3 +1,8 @@
+"""사람 평가(정답 라벨 작성) 서비스: AI 분류 정확도를 재기 위해 사람이 리뷰를 직접 채점합니다.
+
+Streamlit 평가 화면이 이 기능을 씁니다.
+"""
+
 from __future__ import annotations
 
 import csv
@@ -37,18 +42,22 @@ from backend.app.services.review_translation import OllamaReviewTranslator
 DEFAULT_DATASET_ID = "human-eval-140-v1"
 
 
+# 평가 데이터셋이나 항목이 없을 때의 오류.
 class EvaluationNotFoundError(LookupError):
     pass
 
 
+# 입력한 정답 라벨이 규칙에 맞지 않을 때의 오류(예: 근거 문장이 원문에 없음).
 class EvaluationValidationError(ValueError):
     pass
 
 
+# [사람 평가] 진행 현황, 항목 조회·저장, 번역, CSV 내보내기.
 class HumanEvaluationService:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    # 완료·대기 개수를 셉니다.
     def progress(self, dataset_id: str) -> EvaluationProgressResponse:
         rows = self.session.execute(
             select(HumanReviewEvaluation.status, func.count())
@@ -89,6 +98,7 @@ class HumanEvaluationService:
             independent_evaluation=non_independent == 0,
         )
 
+    # N번째 평가 항목(리뷰 원문, AI 예측, 저장된 정답)을 가져옵니다.
     def item(self, dataset_id: str, position: int) -> EvaluationItemResponse:
         item = self.session.scalar(
             select(HumanReviewEvaluation)
@@ -166,6 +176,7 @@ class HumanEvaluationService:
             prediction=prediction,
         )
 
+    # 정답 라벨을 검사(항목 코드, 근거 문장 위치)한 뒤 저장합니다.
     def save(
         self, dataset_id: str, position: int, payload: EvaluationSaveRequest
     ) -> EvaluationItemResponse:
@@ -212,6 +223,7 @@ class HumanEvaluationService:
         self.session.commit()
         return self.item(dataset_id, position)
 
+    # 리뷰를 번역하고 결과를 리뷰에 캐시해 둡니다.
     def translate(self, review_id: str) -> TranslationResponse:
         review = self.session.get(Review, review_id)
         if review is None:
@@ -238,6 +250,7 @@ class HumanEvaluationService:
             translated_at=review.translated_at or datetime.now(UTC),
         )
 
+    # 평가 결과 전체를 CSV 문자열로 만듭니다.
     def export_csv(self, dataset_id: str) -> str:
         items = list(
             self.session.scalars(
@@ -301,6 +314,7 @@ class HumanEvaluationService:
             )
         return output.getvalue()
 
+    # 같은 리뷰에 대한 가장 최근 AI 분석 결과를 비교용으로 정리합니다.
     def _prediction(self, review: Review, category: str) -> EvaluationPrediction:
         results = sorted(
             review.analysis_results,

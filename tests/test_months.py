@@ -1,3 +1,5 @@
+"""월 기간 변환 테스트: [그달 1일, 다음 달 1일) UTC 구간, 연도 넘김, 잘못된 형식 거부."""
+
 from datetime import datetime, timezone
 
 import pytest

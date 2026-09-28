@@ -1,3 +1,5 @@
+"""원본 데이터 적재 규칙 테스트: UTC 월 경계, 중복 리뷰 제거, 기간 밖·불완전 리뷰 제외, 선정 파일 검사."""
+
 import json
 from datetime import datetime, timezone
 

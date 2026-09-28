@@ -1,3 +1,9 @@
+"""상품·리뷰 리포트 계산(서비스 계층의 중심).
+
+상품 카드 요약, 상품 상세 리포트(별점 분포·항목별 평가·불만 TOP·월별 추이·최근 변화),
+두 달 비교, 리뷰 목록을 만듭니다. 모든 비율은 여기서 DB 집계값으로 계산합니다(AI가 계산하지 않음).
+"""
+
 from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
@@ -35,14 +41,17 @@ from backend.app.services.analysis_sample import build_sample_plan
 from backend.app.services.months import month_bounds
 
 
+# 없는 상품 ID를 요청했을 때의 오류(API에서 404로 바뀜).
 class ProductNotFoundError(LookupError):
     pass
 
 
+# 활성 AI 분석 실행이 없을 때의 오류(API에서 503으로 바뀜).
 class AnalysisRunUnavailableError(RuntimeError):
     pass
 
 
+# [리포트 계산] 상품 목록·상세·리포트·비교·리뷰 목록을 만드는 서비스.
 class CatalogService:
     def __init__(self, session: Session) -> None:
         self.products = ProductRepository(session)
@@ -51,6 +60,7 @@ class CatalogService:
         self.insights = ProductInsightRepository(session)
         self._samples: dict[str, set[str] | None] = {}
 
+    # 카테고리 목록(실제 데이터는 공식 7개 순서대로).
     def categories(self, source_mode: str) -> list[str]:
         stored = self.products.categories(source_mode)
         if source_mode != "real":
@@ -59,6 +69,7 @@ class CatalogService:
         # 기존 Appliances는 DB에 보존하지만 공식 7개 카테고리 목록에는 섞지 않습니다.
         return list(REAL_CATEGORY_KEYS)
 
+    # 상품 목록을 찾아 카드 요약 형식으로 바꿉니다.
     def list_products(
         self,
         *,
@@ -77,6 +88,7 @@ class CatalogService:
         )
         return [self._summary(product) for product in products], total
 
+    # 상품 상세 정보와 월별 통계.
     def product_detail(self, product_id: str) -> ProductDetail:
         product = self._require_product(product_id)
         summary = self._summary(product)
@@ -95,6 +107,7 @@ class CatalogService:
             ],
         )
 
+    # 두 달의 항목별 불만 비율을 비교하고, 기준값(최소 리뷰 수·증가폭)으로 변화 신호를 판정합니다.
     def compare(
         self, product_id: str, target_month: str, baseline_month: str
     ) -> ComparisonResponse:
@@ -290,6 +303,7 @@ class CatalogService:
             thresholds=thresholds,
         )
 
+    # 특정 달의 리뷰 목록과 각 리뷰의 AI 라벨.
     def list_reviews(
         self,
         *,
@@ -370,6 +384,7 @@ class CatalogService:
             stored_reviews=review_count,
         )
 
+        # 분석 성공 리뷰 수로 나눈 비율(0으로 나누지 않게 처리).
         def rate(count: int) -> float | None:
             return count / succeeded if succeeded else None
 
@@ -507,18 +522,21 @@ class CatalogService:
             ),
         )
 
+    # 이 상품에 쓸 활성 분석 실행을 찾습니다.
     def _active_run(self, product: Product) -> AnalysisRun | None:
         # 기존 Appliances 실제 상품은 공식 7개 카테고리 분석 run의 대상이 아닙니다.
         if product.source_mode == "real" and product.category not in REAL_CATEGORY_KEYS:
             return None
         return self.runs.active(product.source_mode)
 
+    # 상품을 가져오고, 없으면 ProductNotFoundError를 냅니다.
     def _require_product(self, product_id: str) -> Product:
         product = self.products.get(product_id)
         if product is None:
             raise ProductNotFoundError(product_id)
         return product
 
+    # 상품 카드용: 분석 수와 좋아요/아쉬워요 리뷰 비율(표본 기준).
     def _card_analysis(self, product: Product) -> tuple[int, float | None, float | None]:
         run = self._active_run(product)
         if run is None:
@@ -534,6 +552,7 @@ class CatalogService:
             polarity_reviews.get("negative", 0) / analyzed,
         )
 
+    # 상품을 카드 요약 형식(ProductSummary)으로 바꿉니다.
     def _summary(self, product: Product) -> ProductSummary:
         analyzed, positive_share, negative_share = self._card_analysis(product)
         return ProductSummary(
@@ -586,6 +605,7 @@ class CatalogService:
             return "in_progress"
         return "not_started"
 
+    # 아직 처리되지 않은 리뷰 수.
     @staticmethod
     def _unprocessed(coverage: AnalysisCoverageAggregate) -> int:
         return max(
@@ -596,10 +616,12 @@ class CatalogService:
             0,
         )
 
+    # 분석 성공 비율(대상이 없으면 None).
     @staticmethod
     def _processing_rate(coverage: AnalysisCoverageAggregate) -> float | None:
         return coverage.succeeded / coverage.total if coverage.total else None
 
+    # 두 달의 분석 상태를 합쳐 비교 결과 전체의 상태를 정합니다.
     @staticmethod
     def _combined_status(
         target_status: str, baseline_status: str, any_succeeded: bool
@@ -620,6 +642,7 @@ class CatalogService:
             self._samples[product.id] = plan.members if plan is not None else None
         return self._samples[product.id]
 
+    # 기간 안 분석 진행 상황을 세고, 실패 허용 비율로 '완료/일부 실패/진행 중'을 판정합니다.
     def _analysis_coverage(
         self,
         product_id: str,
@@ -635,6 +658,7 @@ class CatalogService:
             return AnalysisCoverageAggregate(total, 0, 0, 0, 0)
         return self.reviews.analysis_coverage(product_id, start, end, run.id, sample)
 
+    # 리뷰(DB 행)를 API 응답 형식으로 바꾸고 활성 분석의 라벨을 붙입니다.
     @staticmethod
     def _review_response(
         review: Review,

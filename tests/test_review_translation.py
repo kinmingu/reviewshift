@@ -1,3 +1,5 @@
+"""번역 응답 파싱 테스트: 한국어 번역 유지, 원문 숫자 보존, 빈 값 거부."""
+
 import json
 
 import pytest

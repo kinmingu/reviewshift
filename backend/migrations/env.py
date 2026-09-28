@@ -1,3 +1,5 @@
+"""Alembic 마이그레이션 실행 설정: .env의 DB 주소와 우리 테이블 모델을 연결합니다."""
+
 from logging.config import fileConfig
 
 from alembic import context
@@ -15,6 +17,7 @@ config.set_main_option("sqlalchemy.url", get_settings().database_url.replace("%"
 target_metadata = Base.metadata
 
 
+# DB에 접속하지 않고 SQL 문만 만들어 내는 모드.
 def run_migrations_offline() -> None:
     context.configure(
         url=config.get_main_option("sqlalchemy.url"),
@@ -27,6 +30,7 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+# 실제 DB에 접속해 마이그레이션을 적용하는 모드.
 def run_migrations_online() -> None:
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),

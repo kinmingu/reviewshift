@@ -1,3 +1,5 @@
+"""사람 평가 데이터셋(채점할 리뷰 목록)을 DB에 만드는 스크립트."""
+
 from __future__ import annotations
 
 import csv
@@ -16,6 +18,7 @@ BLIND_FILE = PROJECT_ROOT / "data" / "evaluation" / "human_review_blind_140.csv"
 TRIAL_FILE = PROJECT_ROOT / "data" / "evaluation" / "trial_70.json"
 
 
+# 데이터셋 × 리뷰로 평가 행의 고유 ID를 만듭니다.
 def _id(dataset_id: str, review_id: str) -> str:
     digest = hashlib.sha256(f"{dataset_id}|{review_id}".encode()).hexdigest()
     return f"human-eval:{digest}"

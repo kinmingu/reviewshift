@@ -21,6 +21,7 @@ MD_PATH = Path("docs/products.md")
 HTML_PATH = Path("data/reports/products.html")
 
 
+# 아마존 상품 페이지 주소.
 def amazon_url(parent_asin: str) -> str:
     return f"https://www.amazon.com/dp/{parent_asin}"
 
@@ -30,10 +31,12 @@ def archive_url(parent_asin: str) -> str:
     return f"https://web.archive.org/web/2023/https://www.amazon.com/dp/{parent_asin}"
 
 
+# 상품명으로 아마존 검색하는 주소(페이지가 사라졌을 때 대비).
 def search_url(title: str) -> str:
     return "https://www.amazon.com/s?k=" + quote_plus(title[:80])
 
 
+# DB에서 상품 목록과 리뷰 수·표본 수·평점을 모읍니다.
 def load_rows() -> list[dict]:
     rows = []
     with SessionLocal() as session:
@@ -72,6 +75,7 @@ def load_rows() -> list[dict]:
     return rows
 
 
+# 상품 목록을 docs/products.md 표로 씁니다.
 def write_markdown(rows: list[dict]) -> None:
     lines = [
         "# ReviewShift 분석 대상 상품 목록",
@@ -100,6 +104,7 @@ def write_markdown(rows: list[dict]) -> None:
     MD_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+# 상품 목록을 사진 카드 HTML로 씁니다.
 def write_html(rows: list[dict]) -> None:
     cards = []
     for r in rows:
@@ -128,6 +133,7 @@ a{{color:#2f6feb;font-weight:700;text-decoration:none}}</style></head><body>
     HTML_PATH.write_text(page, encoding="utf-8")
 
 
+# 상품 목록을 Markdown·HTML 두 가지로 내보냅니다.
 def main() -> None:
     rows = load_rows()
     write_markdown(rows)

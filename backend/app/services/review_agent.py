@@ -90,6 +90,7 @@ OUTPUT_SCHEMA = {
 }
 
 
+# LangGraph 에이전트가 단계마다 주고받는 상태(질문, 도구 결과, 답변 초안, 검증 결과 등).
 class AgentState(TypedDict, total=False):
     product_id: str
     question: str
@@ -113,6 +114,7 @@ class AgentState(TypedDict, total=False):
 def _facts_from_insights(insights: ProductInsightResponse) -> dict[str, Any]:
     rates_available = insights.analysis.succeeded >= MIN_ANALYZED_FOR_RATES
 
+    # 비율을 % 숫자로 바꿉니다(분석 표본이 작으면 비율을 넘기지 않음).
     def pct(value: float | None) -> float | None:
         # 분석 표본이 작으면 비율 자체를 넘기지 않습니다(검증 목록에도 들어가지 않음).
         if not rates_available or value is None:
@@ -170,6 +172,7 @@ def _allowed_percents(facts: dict[str, Any]) -> list[float]:
     """FACTS 안의 모든 퍼센트·%p 값(답변 수치 검증용)."""
     values: list[float] = []
 
+    # 도구 결과 안의 모든 비율 값을 찾아 '답변에 써도 되는 숫자' 목록에 넣습니다.
     def walk(node: Any, key: str = "") -> None:
         if isinstance(node, dict):
             for child_key, child in node.items():
@@ -196,6 +199,7 @@ def _is_repeat(answer: str, previous: str) -> bool:
 PERCENT_PATTERN = re.compile(r"(\d+(?:\.\d+)?)\s*(?:%p|%|퍼센트|포인트)")
 
 
+# 답변 속 %가 도구 결과에 없는 숫자인지 검사합니다(지어낸 수치 차단).
 def _unknown_percents(answer: str, allowed: list[float]) -> list[str]:
     unknown = []
     for match in PERCENT_PATTERN.finditer(answer):
@@ -206,6 +210,7 @@ def _unknown_percents(answer: str, allowed: list[float]) -> list[str]:
     return unknown
 
 
+# 모델 응답 JSON에서 답변 문장과 인용 리뷰 ID를 꺼냅니다(형식이 틀리면 오류).
 def _parse_llm_json(content: str) -> tuple[str, list[str]]:
     try:
         payload = json.loads(content)
@@ -219,6 +224,7 @@ def _parse_llm_json(content: str) -> tuple[str, list[str]]:
     return payload["answer"].strip(), list(dict.fromkeys(cited))
 
 
+# [AI 상세 답변] LangGraph 흐름: 도구로 자료 수집 → 답변 생성 → 검증 → 실패 시 1회 재생성.
 class ReviewQuestionAgent:
     def __init__(
         self,
@@ -499,6 +505,7 @@ class ReviewQuestionAgent:
             return {"status": "invalid", "validation_error": "; ".join(problems)}
         return {"status": "answered", "validation_error": None}
 
+    # 검증 통과면 끝, 실패면 남은 기회가 있을 때 다시 생성합니다.
     @staticmethod
     def _next_step(state: AgentState) -> str:
         if state.get("status") == "answered":
@@ -516,6 +523,7 @@ class ReviewQuestionAgent:
             return f"{previous} {question}"[:300]
         return question[:300]
 
+    # 질문 하나를 처리해 검증된 답변(또는 실패 사유)을 돌려줍니다.
     def ask(
         self,
         product_id: str,

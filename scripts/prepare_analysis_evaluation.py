@@ -1,3 +1,5 @@
+"""모델 시험용 고정 표본과 사람 채점용 CSV 파일을 만드는 스크립트."""
+
 from __future__ import annotations
 
 import csv
@@ -23,6 +25,7 @@ HARD_PATTERN = re.compile(
 )
 
 
+# 표본 리뷰 한 건을 CSV 한 줄로 바꿉니다.
 def _base_row(item: SampledReview, sample_id: str) -> dict[str, Any]:
     review = item.review
     product = item.product
@@ -43,6 +46,7 @@ def _base_row(item: SampledReview, sample_id: str) -> dict[str, Any]:
     }
 
 
+# 행 목록을 CSV 파일로 씁니다(엑셀용 UTF-8 BOM).
 def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     if not rows:
         raise ValueError(f"CSV에 쓸 행이 없습니다: {path}")
@@ -52,6 +56,7 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
+# 고정 표본을 뽑고 평가용 파일들을 만듭니다.
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     with SessionLocal() as session:

@@ -1,3 +1,5 @@
+"""Amazon Reviews 2023 카테고리 원본 Parquet 파일을 data/ 폴더로 내려받습니다(해시 검증 포함)."""
+
 from __future__ import annotations
 
 import argparse
@@ -18,6 +20,7 @@ from scripts.amazon_category_sources import (
 DEFAULT_OUTPUT = Path("data/raw/amazon_reviews_2023")
 
 
+# 파일의 SHA-256 해시(내려받은 파일이 온전한지 확인).
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -26,6 +29,7 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+# 파일 하나를 내려받습니다(이미 있고 해시가 맞으면 건너뜀).
 def _download_file(remote: RemoteParquet, output_root: Path) -> dict[str, object]:
     destination = output_root / remote.path
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -89,6 +93,7 @@ def _download_file(remote: RemoteParquet, output_root: Path) -> dict[str, object
     }
 
 
+# 내려받을 파일 목록(리뷰/상품정보/둘 다).
 def _plan(source: CategorySource, kind: str) -> list[RemoteParquet]:
     files: list[RemoteParquet] = []
     if kind in {"all", "reviews"}:
@@ -98,6 +103,7 @@ def _plan(source: CategorySource, kind: str) -> list[RemoteParquet]:
     return files
 
 
+# 명령행 옵션으로 카테고리를 받아 다운로드를 실행합니다.
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="고정 리비전의 Amazon Reviews 2023 카테고리 Parquet를 받습니다."

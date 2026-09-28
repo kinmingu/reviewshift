@@ -1,3 +1,5 @@
+"""분석 집계 테스트: 분석 버전(run)이 섞이지 않고, 라벨이 여러 개인 리뷰도 한 번만 세는지 확인."""
+
 import json
 from datetime import UTC, datetime
 from pathlib import Path

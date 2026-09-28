@@ -1,3 +1,8 @@
+"""개발 초기 모델 시험용 고정 표본(카테고리·상품·월을 고르게 섞은 70건)을 뽑는 규칙.
+
+지금 서비스 표본 규칙은 analysis_sample.py입니다.
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -21,16 +26,19 @@ ORIGINAL_EVALUATION_PRODUCTS = frozenset(
 )
 
 
+# 표본으로 뽑힌 리뷰와 그 상품.
 @dataclass(frozen=True)
 class SampledReview:
     review: Review
     product: Product
 
 
+# seed와 리뷰 ID로 항상 같은 정렬 순서를 만듭니다(무작위처럼 보이지만 재현 가능).
 def _stable_rank(seed: str, review_id: str) -> str:
     return hashlib.sha256(f"{seed}|{review_id}".encode()).hexdigest()
 
 
+# 리뷰 작성 월(YYYY-MM).
 def _month(review: Review) -> str:
     return review.reviewed_at.strftime("%Y-%m")
 
@@ -101,6 +109,7 @@ def select_analysis_sample(
     return selected
 
 
+# 표본이 카테고리·상품·월·별점별로 몇 건씩인지 요약합니다.
 def sample_summary(sample: list[SampledReview]) -> dict[str, object]:
     categories = Counter(item.product.category for item in sample)
     products = Counter(item.product.id for item in sample)

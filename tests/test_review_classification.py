@@ -1,3 +1,8 @@
+"""AI 분류기 테스트: 모델 응답 JSON 파싱, 분류 체계에 없는 항목 거부, 근거 문장 검증(원문 포함·단어 경계·최소 길이).
+
+실제 모델 없이 가짜 응답으로 검증 규칙만 확인합니다.
+"""
+
 import json
 from datetime import UTC
 from pathlib import Path

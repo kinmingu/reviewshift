@@ -1,3 +1,5 @@
+"""리뷰 한국어 번역 배치: 아직 번역이 없는 리뷰를 로컬 LLM으로 번역해 원문과 따로 저장합니다."""
+
 from __future__ import annotations
 
 import argparse
@@ -16,6 +18,7 @@ from backend.app.services.review_translation import (
 )
 
 
+# 번역이 없는 리뷰를 카테고리·상품·개수 조건으로 고릅니다.
 def pending_reviews(
     *, category: str | None, product_id: str | None, limit: int | None
 ) -> list[Review]:
@@ -41,6 +44,7 @@ def pending_reviews(
         return list(session.scalars(statement))
 
 
+# 리뷰 한 건을 번역해 저장합니다.
 def translate_one(review_id: str, translator: OllamaReviewTranslator) -> None:
     with SessionLocal() as session:
         review = session.get(Review, review_id)
@@ -55,6 +59,7 @@ def translate_one(review_id: str, translator: OllamaReviewTranslator) -> None:
         session.commit()
 
 
+# 명령행 옵션으로 대상을 정해 번역을 실행합니다.
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Ollama로 실제 Amazon 리뷰를 한국어 번역하고 원문과 별도로 캐시합니다."

@@ -1,3 +1,9 @@
+"""선정한 상품(config/amazon_category_selection.json)의 정보와 3개월 리뷰를 원본 Parquet에서 골라 DB에 적재합니다.
+
+상품 ID·영문명·사진 주소·원천 평점은 상품정보 파일에서, 한국어 이름·표본 크기는 선정 파일에서 가져옵니다.
+예) python -m scripts.import_amazon_category --category Electronics
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -54,6 +60,7 @@ METADATA_COLUMNS = [
 ]
 
 
+# 상품 사진 주소 중 첫 번째(고화질 → 큰 사진 → 썸네일 순서).
 def _first_image(images: Any) -> str | None:
     if not isinstance(images, dict):
         return None
@@ -64,6 +71,7 @@ def _first_image(images: Any) -> str | None:
     return None
 
 
+# 상품 설명(여러 줄 목록)을 한 문자열로 합칩니다.
 def _description(value: Any) -> str | None:
     if isinstance(value, list):
         cleaned = [str(item).strip() for item in value if str(item).strip()]
@@ -72,6 +80,7 @@ def _description(value: Any) -> str | None:
     return cleaned or None
 
 
+# 선정 파일에서 카테고리의 상품 목록을 읽고 필수 값을 검사합니다.
 def load_selection(path: Path, category: str) -> dict[str, dict[str, Any]]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     category_payload = payload.get("categories", {}).get(category)
@@ -96,6 +105,7 @@ def load_selection(path: Path, category: str) -> dict[str, dict[str, Any]]:
     return selected
 
 
+# 상품정보 Parquet에서 선정한 상품의 정보만 골라 읽습니다.
 def read_metadata(
     category: str, input_root: Path, selected_ids: set[str]
 ) -> dict[str, dict[str, Any]]:
@@ -124,6 +134,7 @@ def read_metadata(
     return result
 
 
+# 리뷰 Parquet에서 선정한 상품·기간의 리뷰만 골라 DB 형식으로 바꾸고 월별 개수를 셉니다.
 def selected_review_rows(
     category: str, input_root: Path, selected: dict[str, dict[str, Any]]
 ) -> tuple[list[dict[str, Any]], dict[str, int], dict[str, dict[str, int]]]:
@@ -185,6 +196,7 @@ def selected_review_rows(
     return list(rows.values()), dict(audit), monthly_result
 
 
+# 적재한 월별 리뷰 수가 선정 파일의 예상 수와 같은지 확인합니다.
 def validate_selected_counts(
     selected: dict[str, dict[str, Any]], monthly: dict[str, dict[str, int]]
 ) -> None:
@@ -198,6 +210,7 @@ def validate_selected_counts(
             raise ValueError(f"{parent_asin}: 선택한 3개월 리뷰 합계가 150~600 밖입니다.")
 
 
+# 상품과 리뷰를 DB에 넣습니다(이미 있으면 갱신).
 def upsert_data(
     session: Session,
     category: str,
@@ -274,6 +287,7 @@ def upsert_data(
     }
 
 
+# 카테고리 하나의 적재를 실행하고 결과 개수를 출력합니다.
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="선정한 카테고리 상품 2개의 연속 3개월 리뷰를 PostgreSQL에 적재합니다."

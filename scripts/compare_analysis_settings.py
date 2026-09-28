@@ -1,3 +1,5 @@
+"""같은 리뷰 14건에 대해 두 분석 버전(프롬프트·설정)의 결과를 나란히 비교하는 스크립트."""
+
 from __future__ import annotations
 
 import argparse
@@ -15,6 +17,7 @@ from backend.app.models import Review, ReviewAnalysisResult, ReviewLabel
 DEFAULT_SAMPLE = Path("config/analysis_dev_14.json")
 
 
+# run × 리뷰의 라벨 목록.
 def _labels(session: Any, run_id: str, review_id: str) -> list[dict[str, str]]:
     values = session.scalars(
         select(ReviewLabel)
@@ -37,11 +40,13 @@ def _labels(session: Any, run_id: str, review_id: str) -> list[dict[str, str]]:
     ]
 
 
+# 행 목록에서 특정 값의 평균(값이 없으면 None).
 def _mean(rows: list[dict[str, Any]], field: str) -> float | None:
     values = [float(row[field]) for row in rows if row.get(field) is not None]
     return round(statistics.mean(values), 1) if values else None
 
 
+# 두 run의 결과·속도·실패를 비교해 출력합니다.
 def main() -> None:
     parser = argparse.ArgumentParser(description="고정 14건의 두 분석 버전을 비교합니다.")
     parser.add_argument("--baseline-run", default="amazon-absa-qwen35-v1")

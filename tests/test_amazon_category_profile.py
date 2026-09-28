@@ -1,3 +1,5 @@
+"""후보 상품 프로파일링 테스트: 온전한 리뷰만 세고 연속 3개월 구간을 찾는지 확인."""
+
 from datetime import datetime, timezone
 
 import pyarrow as pa

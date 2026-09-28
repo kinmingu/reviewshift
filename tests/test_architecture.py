@@ -1,3 +1,5 @@
+"""구조 규칙 테스트: Streamlit 화면이 DB·백엔드 코드를 직접 가져다 쓰지 않는지(API로만 통신) 확인."""
+
 import ast
 from pathlib import Path
 

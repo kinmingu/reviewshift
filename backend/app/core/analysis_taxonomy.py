@@ -1,3 +1,8 @@
+"""리뷰 분류 체계(config/review_analysis_taxonomy.json)를 읽는 도우미.
+
+공통 항목(배송·품질 등)과 카테고리 전용 항목을 합쳐, 항목 코드 → 한국어 이름을 찾을 수 있게 합니다.
+"""
+
 from __future__ import annotations
 
 import json
@@ -10,6 +15,7 @@ from backend.app.core.config import PROJECT_ROOT
 TAXONOMY_PATH = PROJECT_ROOT / "config" / "review_analysis_taxonomy.json"
 
 
+# 분류 체계 JSON을 읽고 필수 값(version, common)이 있는지 확인합니다.
 @lru_cache
 def load_taxonomy(path: Path = TAXONOMY_PATH) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -18,6 +24,7 @@ def load_taxonomy(path: Path = TAXONOMY_PATH) -> dict[str, Any]:
     return payload
 
 
+# 카테고리 하나에서 쓸 수 있는 (항목, 세부 항목) → 한국어 이름 표를 만듭니다.
 def category_labels(category: str) -> dict[tuple[str, str], dict[str, str]]:
     taxonomy = load_taxonomy()
     groups = [*taxonomy["common"], *taxonomy["categories"].get(category, [])]

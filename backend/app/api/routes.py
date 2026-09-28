@@ -1,3 +1,9 @@
+"""API 주소(라우트) 모음: 화면(React·Streamlit)이 호출하는 모든 HTTP 엔드포인트.
+
+각 함수는 요청 값을 검사하고 서비스 계층(services/)을 호출한 뒤, 오류를 HTTP 상태 코드(404·422·503)로 바꿉니다.
+실제 계산·검색·AI 로직은 여기에 두지 않습니다.
+"""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -51,10 +57,12 @@ Month = Annotated[str, Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]
 SourceModeParam = Annotated[str, Query(pattern=r"^(fixture|real)$")]
 
 
+# 상품·리뷰 조회 서비스를 만듭니다(요청마다 DB 세션을 받아 생성).
 def _service(session: Session) -> CatalogService:
     return CatalogService(session)
 
 
+# 상품이 없을 때 돌려줄 404 오류를 만듭니다.
 def _not_found(product_id: str) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
@@ -62,10 +70,12 @@ def _not_found(product_id: str) -> HTTPException:
     )
 
 
+# 사람 평가(정답 라벨 작성) 서비스를 만듭니다.
 def _evaluation_service(session: Session) -> HumanEvaluationService:
     return HumanEvaluationService(session)
 
 
+# [사람 평가] 평가 데이터셋의 진행 현황(완료·대기 수).
 @router.get(
     "/api/v1/evaluation/datasets/{dataset_id}/progress",
     response_model=EvaluationProgressResponse,
@@ -77,6 +87,7 @@ def evaluation_progress(dataset_id: str, session: DbSession) -> EvaluationProgre
         raise HTTPException(status_code=404, detail="평가 데이터셋을 찾을 수 없습니다.") from exc
 
 
+# [사람 평가] 평가 데이터셋의 N번째 리뷰와 AI 예측, 저장된 정답 라벨.
 @router.get(
     "/api/v1/evaluation/datasets/{dataset_id}/items/{position}",
     response_model=EvaluationItemResponse,
@@ -90,6 +101,7 @@ def evaluation_item(
         raise HTTPException(status_code=404, detail="평가 항목을 찾을 수 없습니다.") from exc
 
 
+# [사람 평가] 사람이 매긴 정답 라벨을 저장합니다.
 @router.put(
     "/api/v1/evaluation/datasets/{dataset_id}/items/{position}",
     response_model=EvaluationItemResponse,
@@ -108,6 +120,7 @@ def save_evaluation_item(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+# [사람 평가] 평가 결과를 CSV로 내려받습니다(엑셀에서 한글이 깨지지 않게 BOM 추가).
 @router.get("/api/v1/evaluation/datasets/{dataset_id}/export")
 def export_evaluation(dataset_id: str, session: DbSession) -> Response:
     try:
@@ -124,6 +137,7 @@ def export_evaluation(dataset_id: str, session: DbSession) -> Response:
     )
 
 
+# 리뷰 한 건을 한국어로 번역합니다(번역 결과는 DB에 캐시).
 @router.post("/api/v1/reviews/{review_id}/translate", response_model=TranslationResponse)
 def translate_review(review_id: str, session: DbSession) -> TranslationResponse:
     try:
@@ -134,6 +148,7 @@ def translate_review(review_id: str, session: DbSession) -> TranslationResponse:
         raise HTTPException(status_code=503, detail=f"번역 모델 처리 실패: {exc}") from exc
 
 
+# 서버·DB 상태 확인용(SELECT 1이 되면 ok).
 @router.get("/health", response_model=HealthResponse)
 def health(session: DbSession) -> HealthResponse:
     try:
@@ -149,6 +164,7 @@ def anomalies(session: DbSession) -> AnomalyReport:
     return cached_report(session)
 
 
+# 카테고리 목록(실제 데이터 또는 fixture).
 @router.get("/api/v1/categories", response_model=CategoryListResponse)
 def categories(
     session: DbSession, source_mode: SourceModeParam | None = None
@@ -159,6 +175,7 @@ def categories(
     )
 
 
+# 상품 목록: 검색어·카테고리로 거르고 페이지 단위로 돌려줍니다.
 @router.get("/api/v1/products", response_model=ProductListResponse)
 def products(
     session: DbSession,
@@ -186,6 +203,7 @@ def products(
     )
 
 
+# 상품 상세 정보(월별 리뷰 수·평균 별점 포함).
 @router.get("/api/v1/products/{product_id}", response_model=ProductDetail)
 def product_detail(product_id: str, session: DbSession) -> ProductDetail:
     try:
@@ -276,6 +294,7 @@ def search_reviews(
         raise HTTPException(status_code=503, detail=f"임베딩 모델 처리 실패: {exc}") from exc
 
 
+# 두 달(기준 달 → 비교 달)의 항목별 불만 비율 변화를 비교합니다.
 @router.get(
     "/api/v1/products/{product_id}/comparison", response_model=ComparisonResponse
 )
@@ -295,6 +314,7 @@ def comparison(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
 
 
+# 특정 달의 리뷰 원문 목록(항목·감성으로 거르기, 페이지 단위).
 @router.get("/api/v1/products/{product_id}/reviews", response_model=ReviewListResponse)
 def reviews(
     product_id: str,

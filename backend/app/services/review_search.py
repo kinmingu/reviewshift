@@ -18,6 +18,7 @@ from backend.app.services.months import month_bounds
 MAX_QUERY_CHARS = 300
 
 
+# [의미 검색] 검색어를 벡터로 바꿔 상품·기간 안에서 뜻이 비슷한 리뷰를 찾습니다.
 class ReviewSearchService:
     def __init__(self, session: Session, embedder: OllamaEmbedder | None = None) -> None:
         self.session = session

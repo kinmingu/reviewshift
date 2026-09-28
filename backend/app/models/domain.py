@@ -1,3 +1,9 @@
+"""DB 테이블 설계(SQLAlchemy 모델).
+
+상품 → 리뷰 → AI 분석 결과·라벨 → 임베딩(벡터) → 저장된 챗봇 답의 관계를 정의합니다.
+테이블 변경은 Alembic 마이그레이션(backend/migrations)으로 반영합니다.
+"""
+
 from datetime import datetime
 from typing import Any
 
@@ -21,6 +27,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.app.core.database import Base
 
 
+# [상품] 아마존 상품 정보(이름, 카테고리, 사진 주소, 원천 평점, 한국어 이름 등 메타데이터).
 class Product(Base):
     __tablename__ = "products"
 
@@ -41,6 +48,7 @@ class Product(Base):
     )
 
 
+# [분석 실행] AI 분류 한 번의 설정 기록(모델·프롬프트·분류 체계 버전). 활성 실행의 결과만 화면에 씁니다.
 class AnalysisRun(Base):
     __tablename__ = "analysis_runs"
     __table_args__ = (
@@ -76,6 +84,7 @@ class AnalysisRun(Base):
     )
 
 
+# [리뷰] 리뷰 원문, 별점, 작성 시각, 번역 캐시.
 class Review(Base):
     __tablename__ = "reviews"
     __table_args__ = (
@@ -118,6 +127,7 @@ class Review(Base):
     )
 
 
+# [리뷰별 분석 상태] 분석 실행 × 리뷰마다 성공/실패, 시도 횟수, 걸린 시간, 오류 내용.
 class ReviewAnalysisResult(Base):
     __tablename__ = "review_analysis_results"
     __table_args__ = (
@@ -166,6 +176,7 @@ class ReviewAnalysisResult(Base):
     review: Mapped[Review] = relationship(back_populates="analysis_results")
 
 
+# [사람 평가] 사람이 매긴 정답 라벨(AI 정확도 측정용).
 class HumanReviewEvaluation(Base):
     __tablename__ = "human_review_evaluations"
     __table_args__ = (
@@ -211,6 +222,7 @@ class HumanReviewEvaluation(Base):
     review: Mapped[Review] = relationship(back_populates="human_evaluations")
 
 
+# [라벨] AI가 붙인 항목 × 감성 라벨과 그 근거 문장(원문 위치 포함). 리뷰 하나에 여러 개 가능.
 class ReviewLabel(Base):
     __tablename__ = "review_labels"
     __table_args__ = (
@@ -246,6 +258,7 @@ class ReviewLabel(Base):
 EMBEDDING_DIMENSIONS = 1024  # BAAI/bge-m3 dense 벡터 차원
 
 
+# [임베딩] 리뷰 본문을 bge-m3로 바꾼 1024차원 벡터(pgvector, 의미 검색용).
 class ReviewEmbedding(Base):
     __tablename__ = "review_embeddings"
     __table_args__ = (

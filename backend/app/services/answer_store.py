@@ -49,17 +49,20 @@ def question_key(question: str) -> str:
     return re.sub(r"[\s?!.~。？！]+$", "", normalized)[:600]
 
 
+# 상품 × 질문 키 × 프롬프트 버전으로 저장 답의 고유 ID를 만듭니다.
 def _answer_id(product_id: str, key: str, prompt_version: str) -> str:
     digest = hashlib.sha256(f"{product_id}|{key}|{prompt_version}".encode()).hexdigest()
     return f"answer:{digest}"
 
 
+# 답을 만들 당시의 분석 상태(분석 버전, 분석된 리뷰 수). 오래된 답을 가려내는 기준.
 @dataclass(frozen=True)
 class AnalysisSnapshot:
     version: str
     analyzed_count: int
 
 
+# [답 저장소] 챗봇 답을 DB에 저장하고, 분석이 바뀌었으면 '오래된 답'으로 판단합니다.
 class AnswerStore:
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -75,6 +78,7 @@ class AnswerStore:
             return AnalysisSnapshot("not-analyzed", 0)
         return AnalysisSnapshot(run.id, self.catalog.insights.succeeded_count(product_id, run.id))
 
+    # 같은 상품·같은 질문으로 저장된 답을 찾습니다.
     def get(self, product_id: str, question: str) -> AgentAnswer | None:
         return self.session.scalar(
             select(AgentAnswer).where(
@@ -138,6 +142,7 @@ class AnswerStore:
         self.session.execute(statement)
         self.session.commit()
 
+    # 저장된 답(DB 행)을 API 응답 형식으로 바꿉니다(오래됐는지 표시 포함).
     @staticmethod
     def to_response(row: AgentAnswer, snapshot: AnalysisSnapshot) -> AgentAnswerResponse:
         return AgentAnswerResponse(
@@ -190,12 +195,14 @@ class ChatService:
         self.store = AnswerStore(session)
         self._agent = agent
 
+    # AI 에이전트는 실제로 필요할 때 처음 만듭니다(저장 답만 쓰는 경우 모델 준비를 건너뜀).
     @property
     def agent(self) -> ReviewQuestionAgent:
         if self._agent is None:
             self._agent = ReviewQuestionAgent(self.session)
         return self._agent
 
+    # 질문에 답합니다: 대화 첫 질문이고 최신 저장 답이 있으면 그대로, 아니면 AI 에이전트로 새로 만들어 저장합니다.
     def ask(
         self, product_id: str, question: str, history: list[dict[str, str]] | None = None
     ) -> AgentAnswerResponse:

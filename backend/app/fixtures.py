@@ -1,3 +1,8 @@
+"""테스트·데모용 합성(fixture) 데이터: 가짜 상품 3개와 리뷰·라벨.
+
+실제 아마존 데이터와 섞이지 않도록 source_mode='fixture'로 구분해 저장합니다.
+"""
+
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -16,6 +21,7 @@ FIXTURE_RUN_ID = "fixture-analysis-v1"
 FIXTURE_DATA_VERSION = "fixture-2026-09-v1"
 
 
+# 합성 리뷰 한 건의 정의(본문과 미리 정한 정답 라벨).
 @dataclass(frozen=True)
 class ReviewFixture:
     id: str
@@ -28,6 +34,7 @@ class ReviewFixture:
     labels: tuple[tuple[str, str, str, str], ...]
 
 
+# '2024-01-15T..' 같은 문자열을 UTC 시각으로 바꿉니다.
 def _dt(value: str) -> datetime:
     return datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
 
@@ -106,6 +113,7 @@ REVIEWS = (
 )
 
 
+# 합성 상품·리뷰·라벨을 DB에 넣습니다(근거 문장이 본문에 있는지 먼저 검사).
 def seed_fixtures(session: Session) -> dict[str, int]:
     for fixture in REVIEWS:
         for _, _, _, evidence in fixture.labels:

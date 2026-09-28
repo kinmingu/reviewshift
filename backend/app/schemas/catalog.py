@@ -1,3 +1,9 @@
+"""API 응답·요청 형식(Pydantic 스키마).
+
+서버가 화면에 돌려주는 JSON의 모양을 정의하고, 들어오는 값의 길이·범위를 검사합니다.
+docs/API_CONTRACT.md와 같은 내용입니다.
+"""
+
 from datetime import datetime
 from typing import Literal
 
@@ -6,16 +12,19 @@ from pydantic import BaseModel, ConfigDict, Field
 SourceMode = Literal["fixture", "real"]
 
 
+# 서버 상태 확인 응답.
 class HealthResponse(BaseModel):
     status: Literal["ok", "degraded"]
     database: Literal["connected", "unavailable"]
 
 
+# 카테고리 목록 응답.
 class CategoryListResponse(BaseModel):
     items: list[str]
     source_mode: SourceMode
 
 
+# 상품 카드에 쓰는 요약 정보(이름, 사진, 리뷰 수, 분석 수, 좋아요/아쉬워요 비율).
 class ProductSummary(BaseModel):
     id: str
     title: str
@@ -53,6 +62,7 @@ class AnalysisOverview(BaseModel):
     stored_reviews: int = 0
 
 
+# 항목 하나(예: 배송)의 좋아요/아쉬워요 수와 비율.
 class AspectInsight(BaseModel):
     aspect: str
     aspect_name_ko: str | None
@@ -69,6 +79,7 @@ class AspectInsight(BaseModel):
     negative_rate: float | None
 
 
+# 근거로 보여 줄 리뷰 문장 한 건.
 class EvidenceExample(BaseModel):
     review_id: str
     rating: int
@@ -76,6 +87,7 @@ class EvidenceExample(BaseModel):
     evidence_span: str
 
 
+# 자주 나오는 불만 하나와 근거 예시.
 class ComplaintInsight(BaseModel):
     aspect: str
     aspect_name_ko: str | None
@@ -86,6 +98,7 @@ class ComplaintInsight(BaseModel):
     examples: list[EvidenceExample]
 
 
+# 월별 리뷰 수·평균 별점·분석 결과.
 class MonthlyInsight(BaseModel):
     month: str
     review_count: int
@@ -95,6 +108,7 @@ class MonthlyInsight(BaseModel):
     negative_review_share: float | None
 
 
+# 최근 두 달 사이 불만 변화 요약.
 class LatestChange(BaseModel):
     baseline_month: str
     target_month: str
@@ -103,6 +117,7 @@ class LatestChange(BaseModel):
     top_negative_changes: list["ComparisonIssue"]
 
 
+# 상품 상세 리포트 전체 응답(별점 분포, 항목별 평가, 불만 TOP, 월별 추이, 최근 변화).
 class ProductInsightResponse(BaseModel):
     product_id: str
     source_mode: SourceMode
@@ -119,6 +134,7 @@ class ProductInsightResponse(BaseModel):
     data_version: str
 
 
+# 상품 목록 응답(페이지 정보 포함).
 class ProductListResponse(BaseModel):
     items: list[ProductSummary]
     page: int
@@ -127,12 +143,14 @@ class ProductListResponse(BaseModel):
     source_mode: SourceMode
 
 
+# 월별 리뷰 수와 평균 별점.
 class MonthlyReviewStat(BaseModel):
     month: str
     review_count: int
     average_rating: float
 
 
+# 상품 상세 정보(요약 + 원천 정보·메타데이터·월별 통계).
 class ProductDetail(ProductSummary):
     source: str
     parent_asin: str
@@ -140,6 +158,7 @@ class ProductDetail(ProductSummary):
     monthly_stats: list[MonthlyReviewStat]
 
 
+# 리뷰에 붙은 라벨 하나(항목, 감성, 근거 문장).
 class ReviewLabelResponse(BaseModel):
     aspect: str
     aspect_name_ko: str | None = None
@@ -153,6 +172,7 @@ class ReviewLabelResponse(BaseModel):
     label_schema_version: str | None = None
 
 
+# 리뷰 한 건(원문, 번역, 별점, 라벨).
 class ReviewResponse(BaseModel):
     id: str
     title: str | None
@@ -173,6 +193,7 @@ class ReviewResponse(BaseModel):
     in_analysis_sample: bool | None = None
 
 
+# 리뷰 목록 응답.
 class ReviewListResponse(BaseModel):
     items: list[ReviewResponse]
     page: int
@@ -181,6 +202,7 @@ class ReviewListResponse(BaseModel):
     source_mode: SourceMode
 
 
+# 두 달 비교에서 각 달의 분석 진행 정도.
 class CoverageResponse(BaseModel):
     target_total: int
     target_labeled: int
@@ -206,6 +228,7 @@ class CoverageResponse(BaseModel):
     ]
 
 
+# 두 달 비교에서 항목 하나의 불만 비율 변화.
 class ComparisonIssue(BaseModel):
     aspect: str
     aspect_name_ko: str | None = None
@@ -223,6 +246,7 @@ class ComparisonIssue(BaseModel):
     evidence_review_ids: list[str]
 
 
+# 변화 신호를 판정하는 기준값(최소 리뷰 수, 최소 증가폭 등).
 class ChangeThresholds(BaseModel):
     min_review_count: int
     min_negative_count: int
@@ -231,6 +255,7 @@ class ChangeThresholds(BaseModel):
     max_failure_rate: float
 
 
+# 두 달 비교 응답 전체.
 class ComparisonResponse(BaseModel):
     product_id: str
     target_month: str
@@ -264,6 +289,7 @@ EvaluationStatus = Literal["pending", "completed"]
 GoldPolarity = Literal["positive", "negative", "neutral", "uncertain"]
 
 
+# [사람 평가] 고를 수 있는 항목 선택지.
 class TaxonomyOption(BaseModel):
     aspect_code: str
     aspect_name_ko: str
@@ -271,6 +297,7 @@ class TaxonomyOption(BaseModel):
     detail_name_ko: str
 
 
+# [사람 평가] 사람이 입력한 정답 라벨 하나.
 class GoldLabelInput(BaseModel):
     aspect_code: str
     detail_code: str
@@ -278,6 +305,7 @@ class GoldLabelInput(BaseModel):
     evidence_span: str = Field(min_length=1)
 
 
+# [사람 평가] 리뷰 한 건에 대한 사람의 평가 내용.
 class EvaluationAnnotation(BaseModel):
     reviewer: str | None = None
     status: EvaluationStatus
@@ -287,6 +315,7 @@ class EvaluationAnnotation(BaseModel):
     completed_at: datetime | None = None
 
 
+# [사람 평가] 평가 저장 요청.
 class EvaluationSaveRequest(BaseModel):
     reviewer: str | None = Field(default=None, max_length=120)
     status: EvaluationStatus = "pending"
@@ -295,6 +324,7 @@ class EvaluationSaveRequest(BaseModel):
     notes: str | None = Field(default=None, max_length=5000)
 
 
+# [사람 평가] 같은 리뷰에 대한 AI 예측(비교용).
 class EvaluationPrediction(BaseModel):
     status: Literal["not_run", "pending", "running", "succeeded", "failed"]
     analysis_version: str | None = None
@@ -302,6 +332,7 @@ class EvaluationPrediction(BaseModel):
     error: str | None = None
 
 
+# [사람 평가] 평가 화면 한 장에 필요한 모든 정보.
 class EvaluationItemResponse(BaseModel):
     dataset_id: str
     position: int
@@ -319,6 +350,7 @@ class EvaluationItemResponse(BaseModel):
     prediction: EvaluationPrediction | None = None
 
 
+# [사람 평가] 진행 현황.
 class EvaluationProgressResponse(BaseModel):
     dataset_id: str
     total: int
@@ -328,6 +360,7 @@ class EvaluationProgressResponse(BaseModel):
     independent_evaluation: bool
 
 
+# 리뷰 번역 결과.
 class TranslationResponse(BaseModel):
     review_id: str
     title_ko: str
@@ -347,6 +380,7 @@ class ReviewSearchHit(BaseModel):
     review: ReviewResponse
 
 
+# 리뷰 의미 검색 결과(비슷한 순서).
 class ReviewSearchResponse(BaseModel):
     product_id: str
     query: str
@@ -364,12 +398,14 @@ class ChatTurn(BaseModel):
     content: str = Field(min_length=1, max_length=1500)
 
 
+# 챗봇 질문 요청(질문과 최근 대화).
 class AgentQuestionRequest(BaseModel):
     question: str = Field(min_length=2, max_length=500)
     # 이전 대화(최근 것만). 답변 문맥에만 쓰고 수치·근거로는 쓰지 않습니다.
     history: list[ChatTurn] = Field(default_factory=list, max_length=8)
 
 
+# 챗봇이 호출한 도구 기록(무슨 도구를, 성공 여부, 걸린 시간).
 class AgentToolCall(BaseModel):
     tool: str
     arguments: dict[str, object]
@@ -380,6 +416,7 @@ class AgentToolCall(BaseModel):
     transport: str = "direct"
 
 
+# 챗봇 답변이 인용한 리뷰.
 class AgentCitation(BaseModel):
     review_id: str
     rating: int
@@ -387,6 +424,7 @@ class AgentCitation(BaseModel):
     excerpt: str
 
 
+# 챗봇 AI 답변 응답(답, 인용 리뷰, 도구 기록, 검증 결과, 버전).
 class AgentAnswerResponse(BaseModel):
     product_id: str
     question: str
@@ -419,6 +457,7 @@ class FaqItem(BaseModel):
     answer: AgentAnswerResponse | None
 
 
+# 자주 묻는 질문과 미리 만들어 둔 답 목록.
 class FaqResponse(BaseModel):
     product_id: str
     analysis_version: str
@@ -452,6 +491,7 @@ class AnomalyItem(BaseModel):
     evidence_review_ids: list[str]
 
 
+# 이상징후(불만 급증) 검정 결과 전체.
 class AnomalyReport(BaseModel):
     method_version: str
     method: str

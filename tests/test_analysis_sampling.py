@@ -1,3 +1,5 @@
+"""개발용 고정 표본 테스트: 시험 표본과 평가 표본이 고르게 뽑히고 서로 겹치지 않는지 확인."""
+
 import pytest
 
 from backend.app.core.database import SessionLocal

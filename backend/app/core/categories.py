@@ -1,3 +1,5 @@
+"""서비스에서 다루는 공식 7개 아마존 카테고리 키 목록."""
+
 REAL_CATEGORY_NAMES_KO = {
     "Electronics": "전자제품",
     "Beauty_and_Personal_Care": "뷰티·개인관리",

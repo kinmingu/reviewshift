@@ -18,6 +18,7 @@ from backend.app.models.domain import EMBEDDING_DIMENSIONS
 EMBEDDING_MODEL = "bge-m3"
 
 
+# 임베딩 모델(Ollama) 호출이 실패했을 때의 오류.
 class EmbeddingError(RuntimeError):
     pass
 
@@ -27,6 +28,7 @@ def embedding_text(title: str | None, text: str) -> str:
     return f"{title or ''}\n{text}".strip()
 
 
+# 리뷰 본문의 해시. 본문이 바뀌면 임베딩을 다시 만들기 위해 씁니다.
 def content_hash(title: str | None, text: str) -> str:
     return hashlib.sha256(embedding_text(title, text).encode("utf-8")).hexdigest()
 
@@ -38,6 +40,7 @@ class OllamaEmbedder:
     base_url: str = "http://127.0.0.1:11434"
     timeout_seconds: float = 120
 
+    # 문장 목록을 Ollama bge-m3로 보내 1024차원 벡터 목록을 받습니다.
     def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []

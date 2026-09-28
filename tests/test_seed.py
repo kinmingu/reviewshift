@@ -1,3 +1,5 @@
+"""합성 데이터 테스트: 여러 번 넣어도 중복되지 않는지(멱등성) 확인."""
+
 from sqlalchemy import func, select
 
 from backend.app.core.database import SessionLocal

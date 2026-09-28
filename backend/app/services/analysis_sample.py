@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from backend.app.models import Product, Review
 
 
+# 리뷰 ID를 SHA-256으로 섞어 '처리 순서 키'를 만듭니다. 누가 언제 돌려도 같은 순서라 재현 가능합니다.
 def processing_order_key(review_id: str) -> str:
     return hashlib.sha256(f"reviewshift-processing-order|{review_id}".encode()).hexdigest()
 
@@ -36,11 +37,13 @@ def month_quotas(month_counts: dict[str, int], size: int) -> dict[str, int]:
     }
 
 
+# 상품 하나의 표본 계획: 목표 크기와 달마다 뽑힌 리뷰 ID(처리 순서대로).
 @dataclass(frozen=True)
 class SamplePlan:
     size: int
     by_month: dict[str, list[str]]  # 월 → 표본 리뷰 ID(해시 순서)
 
+    # 표본에 들어간 모든 리뷰 ID.
     @property
     def members(self) -> set[str]:
         return {review_id for ids in self.by_month.values() for review_id in ids}
@@ -55,6 +58,7 @@ class SamplePlan:
         return [review_id for _, _, review_id in sorted(positions)]
 
 
+# 상품의 analysis_sample_size만큼 표본을 뽑습니다. 달마다 리뷰 수에 비례해 나누고(올림), 달 안에서는 처리 순서 키 순으로 고릅니다.
 def build_sample_plan(session: Session, product: Product) -> SamplePlan | None:
     size = product.metadata_json.get("analysis_sample_size")
     if not size:

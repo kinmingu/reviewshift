@@ -1,3 +1,5 @@
+"""리뷰 번역기: 로컬 LLM으로 영어 리뷰를 한국어로 번역합니다(결과는 리뷰에 캐시)."""
+
 from __future__ import annotations
 
 import json
@@ -15,6 +17,7 @@ with title_ko and text_ko strings. The translation is a reference; the English t
 the authoritative source."""
 
 
+# 번역된 제목과 본문.
 @dataclass(frozen=True)
 class TranslationResult:
     title_ko: str
@@ -30,6 +33,7 @@ def _normalized_numbers(value: str) -> list[str]:
     return re.findall(r"\d+(?:\.\d+)?", value.replace(",", ""))
 
 
+# 모델 응답 JSON에서 번역문을 꺼내고 비어 있지 않은지 확인합니다.
 def parse_translation(content: str, original_title: str, original_text: str) -> TranslationResult:
     payload: Any = json.loads(content)
     if not isinstance(payload, dict):
@@ -48,6 +52,7 @@ def parse_translation(content: str, original_title: str, original_text: str) -> 
     return TranslationResult(title_ko=title_ko, text_ko=text_ko)
 
 
+# [번역기] Ollama 모델에 번역을 요청합니다.
 class OllamaReviewTranslator:
     def __init__(
         self,
@@ -60,6 +65,7 @@ class OllamaReviewTranslator:
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
 
+    # 제목·본문을 번역해 돌려줍니다(모델 오류는 TranslationError).
     def translate(self, title: str | None, text: str) -> TranslationResult:
         original_title = title or ""
         try:

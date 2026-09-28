@@ -26,6 +26,7 @@ class McpUnavailableError(RuntimeError):
     """MCP 서버를 띄우거나 연결할 수 없음(연결 단계 오류)."""
 
 
+# MCP 도구 호출 결과 한 건(성공 여부, 데이터, 오류, 걸린 시간).
 @dataclass(frozen=True)
 class McpToolResult:
     tool: str
@@ -36,6 +37,7 @@ class McpToolResult:
     duration_ms: int
 
 
+# MCP 응답에서 JSON 데이터를 꺼냅니다.
 def _payload(result: Any) -> dict[str, Any]:
     if result.structured_content:
         content = result.structured_content
@@ -43,11 +45,13 @@ def _payload(result: Any) -> dict[str, Any]:
     return json.loads(result.content[0].text)
 
 
+# MCP 오류 응답에서 사람이 읽을 메시지를 꺼냅니다.
 def _error_text(result: Any) -> str:
     texts = [getattr(item, "text", "") for item in result.content or []]
     return " ".join(text for text in texts if text)[:500] or "알 수 없는 도구 오류"
 
 
+# [MCP 클라이언트] 우리 MCP 도구 서버에 연결해 도구를 호출합니다(stdio 별도 프로세스 또는 같은 프로세스).
 class McpReviewTools:
     def __init__(self, transport: str = "mcp_stdio", timeout_seconds: float = 120) -> None:
         if transport not in TRANSPORTS:
@@ -55,6 +59,7 @@ class McpReviewTools:
         self.transport = transport
         self.timeout_seconds = timeout_seconds
 
+    # 연결 방식에 맞는 MCP 서버 대상(같은 프로세스 객체 또는 별도 프로세스 실행 명령)을 고릅니다.
     def _server(self) -> Any:
         if self.transport == "mcp_memory":
             from backend.app.mcp_server import server
@@ -79,6 +84,7 @@ class McpReviewTools:
         except Exception as exc:  # 서버 실행 실패·연결 끊김 등
             raise McpUnavailableError(f"MCP 서버 연결 실패: {type(exc).__name__}: {exc}") from exc
 
+    # MCP 세션 하나를 열어 여러 도구를 차례로 호출하고 결과를 모읍니다.
     async def _call_all(self, calls: list[tuple[str, dict[str, Any]]]) -> list[McpToolResult]:
         results: list[McpToolResult] = []
         async with Client(self._server(), read_timeout_seconds=self.timeout_seconds) as client:
