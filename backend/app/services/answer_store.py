@@ -26,6 +26,7 @@ from backend.app.schemas.catalog import (
     FaqResponse,
 )
 from backend.app.services.catalog import CatalogService, ProductNotFoundError
+from backend.app.services.fast_answer import FAST_PROMPT_VERSION
 from backend.app.services.review_agent import AGENT_PROMPT_VERSION, ReviewQuestionAgent
 
 # 분석 수가 이만큼 이하로 바뀌면 저장 답을 그대로 씁니다.
@@ -40,7 +41,16 @@ FAQ_QUESTIONS: tuple[tuple[str, str, str], ...] = (
     ("value", "가격 대비", "가격 대비 괜찮은가요?"),
     ("usability", "사용 편의", "사용하거나 설치하기 편한가요?"),
     ("safety", "안전·주의", "안전 문제나 주의할 점은 없나요?"),
+    # 2026-09-29 추가(빠른 요약본 RAG로 생성)
+    ("quality", "품질·마감", "재질이나 마감이 튼튼한가요?"),
+    ("size", "크기·사이즈", "크기나 사이즈가 설명과 맞나요?"),
+    ("performance", "성능", "제 기능을 잘 하나요?"),
+    ("top_complaint", "주요 불만", "가장 많이 나오는 불만은 뭔가요?"),
+    ("recent_change", "최근 변화", "최근에 품질이 달라졌나요?"),
+    ("fit_for", "추천 대상", "어떤 사람에게 잘 맞나요?"),
 )
+# 저장 답을 찾을 때 인정하는 답변 방식(같은 질문이면 가장 최근 답을 씁니다)
+STORED_PROMPT_VERSIONS = (AGENT_PROMPT_VERSION, FAST_PROMPT_VERSION)
 
 
 def question_key(question: str) -> str:
@@ -78,14 +88,17 @@ class AnswerStore:
             return AnalysisSnapshot("not-analyzed", 0)
         return AnalysisSnapshot(run.id, self.catalog.insights.succeeded_count(product_id, run.id))
 
-    # 같은 상품·같은 질문으로 저장된 답을 찾습니다.
+    # 같은 상품·같은 질문으로 저장된 답을 찾습니다(두 방식 중 가장 최근 답).
     def get(self, product_id: str, question: str) -> AgentAnswer | None:
         return self.session.scalar(
-            select(AgentAnswer).where(
+            select(AgentAnswer)
+            .where(
                 AgentAnswer.product_id == product_id,
                 AgentAnswer.question_key == question_key(question),
-                AgentAnswer.prompt_version == AGENT_PROMPT_VERSION,
+                AgentAnswer.prompt_version.in_(STORED_PROMPT_VERSIONS),
             )
+            .order_by(AgentAnswer.created_at.desc())
+            .limit(1)
         )
 
     @staticmethod

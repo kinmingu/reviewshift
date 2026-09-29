@@ -8,6 +8,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 
 from backend.app import mcp_server
 from backend.app.services import review_search
+from backend.app.services.answer_store import FAQ_QUESTIONS
 
 PRODUCT = "fixture-prod-coffee"
 
@@ -59,7 +60,7 @@ def test_report_and_comparison_tools_return_sql_aggregates() -> None:
     assert all(len(item["evidence_review_ids"]) <= 5 for item in comparison["issues"])
 
     faq = _payload(_call("get_faq_answers", {"product_id": PRODUCT}))
-    assert len(faq["items"]) == 6
+    assert len(faq["items"]) == len(FAQ_QUESTIONS)
 
 
 def test_errors_are_reported_as_tool_errors(monkeypatch: pytest.MonkeyPatch) -> None:

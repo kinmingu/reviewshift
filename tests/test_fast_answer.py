@@ -4,7 +4,10 @@ import json
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import delete
 
+from backend.app.core.database import SessionLocal
+from backend.app.models import AgentAnswer
 from backend.app.models.domain import EMBEDDING_DIMENSIONS
 from backend.app.services import fast_answer, quick_answer
 from backend.app.services.fast_answer import FastAnswerService, build_digest, verify
@@ -41,6 +44,19 @@ def _fake_stream(*answers: str):
 
     stream.calls = calls
     return stream
+
+
+@pytest.fixture(autouse=True)
+def clear_fast_answer_cache() -> None:
+    """테스트 DB에 남은 빠른 답 저장본을 지워, 매번 처음 묻는 질문 상태에서 시작합니다."""
+    with SessionLocal() as session:
+        session.execute(
+            delete(AgentAnswer).where(
+                AgentAnswer.product_id == PRODUCT,
+                AgentAnswer.prompt_version == fast_answer.FAST_PROMPT_VERSION,
+            )
+        )
+        session.commit()
 
 
 @pytest.fixture(autouse=True)
@@ -182,9 +198,41 @@ def test_stream_api_reports_unexpected_errors_instead_of_ending_silently(
         yield  # pragma: no cover
 
     monkeypatch.setattr(fast_answer, "ollama_stream", broken)
-    response = client.post(f"/api/v1/products/{PRODUCT}/questions/stream", json={"question": "고장이 잦나요?"})
+    # 다른 테스트가 저장한 답이 재사용되지 않도록 처음 묻는 질문을 씁니다.
+    response = client.post(f"/api/v1/products/{PRODUCT}/questions/stream", json={"question": "전원이 잘 켜지나요?"})
     events = [json.loads(line) for line in response.text.splitlines() if line]
     assert events[-1]["type"] == "error" and "KeyError" in events[-1]["message"]
+
+
+def test_first_turn_fast_answer_is_saved_and_reused(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    stream = _fake_stream("분석한 리뷰에서는 관련 언급을 찾지 못했어요.")
+    monkeypatch.setattr(fast_answer, "ollama_stream", stream)
+    question = {"question": "포장 상태는 어땠나요?"}
+    first = client.post(f"/api/v1/products/{PRODUCT}/questions/stream", json=question)
+    assert json.loads(first.text.splitlines()[-1])["result"]["cached"] is False
+    # 같은 질문을 다시 물으면 모델을 부르지 않고 저장된 답을 바로 돌려줍니다.
+    again = client.post(f"/api/v1/products/{PRODUCT}/questions/stream", json=question)
+    events = [json.loads(line) for line in again.text.splitlines() if line]
+    assert len(events) == 1 and events[0]["result"]["cached"] is True
+    assert events[0]["result"]["prompt_version"] == fast_answer.FAST_PROMPT_VERSION
+    assert len(stream.calls) == 1
+
+
+def test_digest_includes_top_complaints_and_recent_change() -> None:
+    report = {
+        **REPORT,
+        "top_complaints": [{"detail_label": "x", "detail_name_ko": "신뢰성·고장", "negative_count": 8, "negative_rate": 0.2}],
+        "latest_change": {
+            "baseline_month": "2022-01", "target_month": "2022-02",
+            "top_negative_changes": [{"detail_label": "x", "detail_name_ko": "배송", "baseline_rate": 0.1,
+                                      "target_rate": 0.3, "change_pp": 20.0}],
+        },
+    }
+    digest, _, allowed = build_digest(QUICK, report)
+    assert "가장 많이 나온 아쉬운 점(분석한 리뷰 40건 대비): 신뢰성·고장 8건(20.0%)" in digest
+    assert "각 달 분석 리뷰 중" in digest
+    assert "배송 10.0% → 30.0%(+20.0%p)" in digest
+    assert {10.0, 30.0, 20.0} <= set(allowed)
 
 
 def test_product_cards_carry_server_analysis_status(client: TestClient) -> None:

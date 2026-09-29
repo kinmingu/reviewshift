@@ -17,7 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import get_settings
-from backend.app.core.database import get_db
+from backend.app.core.database import SessionLocal, get_db
 from backend.app.schemas.catalog import (
     AgentAnswerResponse,
     AgentQuestionRequest,
@@ -37,7 +37,7 @@ from backend.app.schemas.catalog import (
     TranslationResponse,
 )
 from backend.app.services.anomaly import cached_report
-from backend.app.services.answer_store import AnswerStore, ChatService
+from backend.app.services.answer_store import AnalysisSnapshot, AnswerStore, ChatService
 from backend.app.services.catalog import (
     AnalysisRunUnavailableError,
     CatalogService,
@@ -280,6 +280,17 @@ def ask_product_question(
         raise HTTPException(status_code=503, detail=f"AI 모델 응답 실패: {exc}") from exc
 
 
+def _save_fast_answer(product_id: str, result: dict, snapshot: AnalysisSnapshot) -> None:
+    """작업 스레드에서 호출합니다(요청 세션과 별도 세션). 저장 실패는 답 전달을 막지 않습니다."""
+    try:
+        with SessionLocal() as session:
+            AnswerStore(session).save(
+                product_id, AgentAnswerResponse.model_validate(result), snapshot
+            )
+    except Exception:
+        logger.exception("fast answer cache save failed")
+
+
 @router.post("/api/v1/products/{product_id}/questions/stream")
 def ask_product_question_stream(
     product_id: str, payload: AgentQuestionRequest, session: DbSession, request: Request
@@ -294,6 +305,7 @@ def ask_product_question_stream(
     history = [turn.model_dump() for turn in payload.history]
     # 대화 첫 질문이고 같은 질문의 최신 저장 답(FAQ 포함)이 있으면 그대로 돌려줍니다.
     cached = None
+    snapshot = None
     if not history:
         store = AnswerStore(session)
         snapshot = store.snapshot(product_id)
@@ -318,6 +330,9 @@ def ask_product_question_stream(
         def worker() -> None:
             try:
                 for event in service.stream(product_id, payload.question, history, name):
+                    # 대화 첫 질문의 검증된 답은 저장해 같은 질문을 다시 물으면 바로 답합니다.
+                    if event["type"] == "done" and snapshot is not None:
+                        _save_fast_answer(product_id, event["result"], snapshot)
                     loop.call_soon_threadsafe(queue.put_nowait, event)
             except (AgentUnavailableError, ValueError) as exc:
                 if not service.cancelled:

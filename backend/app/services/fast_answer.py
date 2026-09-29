@@ -88,7 +88,11 @@ def build_digest(
         head += " | 분석한 리뷰가 적어 비율은 말하지 않는다"
     lines.append(head)
 
-    lines.append("질문과 관련된 항목:")
+    # %의 기준(분모)을 문장에 적어, 모델이 '부정 리뷰 중 몇 %'처럼 잘못 설명하지 않게 합니다.
+    base = f"분석한 리뷰 {analyzed}건 대비" if rates else "건수만"
+    lines.append(
+        f"질문과 관련된 항목(괄호 안 비율은 {base}):" if rates else "질문과 관련된 항목(건수만):"
+    )
     for item in quick["aspects"]:
         if not item["mention_count"]:
             lines.append(f"- {item['name_ko']}: 분석한 리뷰에서 언급 없음")
@@ -104,6 +108,38 @@ def build_digest(
             else:
                 parts.append(f"{label} {count}건")
         lines.append(text + " — " + ", ".join(parts))
+
+    # 상품 전체의 주요 불만과 최근 두 달 변화(주요 불만·최근 변화 질문에 답할 수 있게, 서버 계산값만)
+    complaints = []
+    for item in report.get("top_complaints", [])[:3]:
+        name = item.get("detail_name_ko") or item["detail_label"]
+        if rates and item.get("negative_rate") is not None:
+            value = round(item["negative_rate"] * 100, 1)
+            allowed.append(value)
+            complaints.append(f"{name} {item['negative_count']}건({value}%)")
+        else:
+            complaints.append(f"{name} {item['negative_count']}건")
+    if complaints:
+        lines.append(f"가장 많이 나온 아쉬운 점({base}): " + ", ".join(complaints))
+    change = report.get("latest_change")
+    if change and rates:
+        increases = []
+        for issue in change.get("top_negative_changes", [])[:2]:
+            if issue.get("baseline_rate") is None or issue.get("target_rate") is None:
+                continue
+            before = round(issue["baseline_rate"] * 100, 1)
+            after = round(issue["target_rate"] * 100, 1)
+            allowed += [before, after]
+            text = f"{issue.get('detail_name_ko') or issue['detail_label']} {before}% → {after}%"
+            if issue.get("change_pp") is not None:
+                allowed.append(round(abs(issue["change_pp"]), 1))
+                text += f"({issue['change_pp']:+.1f}%p)"
+            increases.append(text)
+        lines.append(
+            f"최근 두 달 변화({change['baseline_month']} → {change['target_month']}, "
+            "각 달 분석 리뷰 중 그 아쉬운 점을 말한 비율): "
+            + (", ".join(increases) if increases else "눈에 띄게 늘어난 아쉬운 점 없음")
+        )
 
     # 근거: 항목별 대표 문장(아쉬워요·좋아요 각 1개) + 질문과 비슷한 리뷰, 리뷰 ID 중복 제거
     sources: list[dict[str, Any]] = []
