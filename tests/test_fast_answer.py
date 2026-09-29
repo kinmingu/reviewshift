@@ -32,7 +32,7 @@ def _fake_stream(*answers: str):
     """정해 둔 답을 두 글자씩 흘려보내는 가짜 LLM(호출마다 다음 답)."""
     calls = []
 
-    def stream(messages):
+    def stream(messages, **_options):
         calls.append(messages)
         text = answers[min(len(calls), len(answers)) - 1]
         for start in range(0, len(text), 2):
@@ -163,6 +163,28 @@ def test_stream_api_returns_ndjson_events(client: TestClient, monkeypatch: pytes
 
     assert client.post("/api/v1/products/nope/questions/stream", json={"question": "괜찮나요?"}).status_code == 404
     assert client.post(f"/api/v1/products/{PRODUCT}/questions/stream", json={"question": "a"}).status_code == 422
+
+
+def test_cancelled_stream_does_not_start_generation() -> None:
+    stream = _fake_stream("고장 리뷰가 있어요 [1].")
+    service = _service(stream)
+    service.cancel()  # 사용자가 새 질문을 보내 취소한 상태
+    events = list(service.stream("p", "고장이 잦나요?"))
+    assert stream.calls == []
+    assert all(event["type"] == "status" for event in events)
+
+
+def test_stream_api_reports_unexpected_errors_instead_of_ending_silently(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(messages, **_options):
+        raise KeyError("boom")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(fast_answer, "ollama_stream", broken)
+    response = client.post(f"/api/v1/products/{PRODUCT}/questions/stream", json={"question": "고장이 잦나요?"})
+    events = [json.loads(line) for line in response.text.splitlines() if line]
+    assert events[-1]["type"] == "error" and "KeyError" in events[-1]["message"]
 
 
 def test_product_cards_carry_server_analysis_status(client: TestClient) -> None:

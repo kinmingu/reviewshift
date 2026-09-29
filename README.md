@@ -316,6 +316,10 @@ claude mcp add reviewshift -- C:\workspaces\ag_f_prj\.venv\Scripts\python.exe -m
 Ollama 프롬프트 캐시는 요청 전체가 같을 때만 재사용된다(12.6초 → 0.3초). qwen3.5에서는 지시문만 같은
 요청의 부분 재사용이 되지 않는다. 그래서 속도 개선은 주로 입력 축소와 스트리밍에서 나온다.
 
+질문을 보내면 즉시 답(약 0.3초)과 AI 답을 동시에 시작한다. 사용자가 즉시 답을 읽는 동안 AI 답이 이어서 나온다.
+가까운 FAQ 저장 답이 있거나 새 질문을 보내면 진행 중인 AI 답은 취소되고, 서버가 Ollama 생성도 멈춘다.
+실측으로 취소 후 다음 질문의 첫 글자는 69.8초에서 25.7초로 줄었다.
+
 ## Docker로 한 번에 실행 (DB + API + 화면)
 
 `compose.yaml`의 `app` 프로필로 API(`Dockerfile.api`)와 React 화면(`frontend_react/Dockerfile`, nginx)을

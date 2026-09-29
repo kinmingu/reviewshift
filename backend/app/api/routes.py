@@ -4,10 +4,13 @@
 실제 계산·검색·AI 로직은 여기에 두지 않습니다.
 """
 
+import asyncio
 import json
+import logging
+import threading
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -53,6 +56,7 @@ from backend.app.services.review_search import ReviewSearchService
 from backend.app.services.review_translation import TranslationError
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 DbSession = Annotated[Session, Depends(get_db)]
 Page = Annotated[int, Query(ge=1)]
 PageSize = Annotated[int, Query(ge=1, le=100)]
@@ -278,7 +282,7 @@ def ask_product_question(
 
 @router.post("/api/v1/products/{product_id}/questions/stream")
 def ask_product_question_stream(
-    product_id: str, payload: AgentQuestionRequest, session: DbSession
+    product_id: str, payload: AgentQuestionRequest, session: DbSession, request: Request
 ) -> StreamingResponse:
     """빠른 AI 답변(요약본 RAG): 생성되는 글자를 NDJSON 이벤트로 바로 보내고, 끝나면 검증 결과를 보냅니다.
 
@@ -298,15 +302,53 @@ def ask_product_question_stream(
             cached = store.to_response(row, snapshot).model_dump(mode="json")
     name = str(product.metadata_json.get("title_ko") or product.title)
 
-    def events():
+    def line(event: dict) -> str:
+        return json.dumps(event, ensure_ascii=False) + "\n"
+
+    async def events():
         if cached is not None:
-            yield json.dumps({"type": "done", "result": cached, "metrics": {}}, ensure_ascii=False) + "\n"
+            yield line({"type": "done", "result": cached, "metrics": {}})
             return
+        # 생성은 작업 스레드에서 하고, 여기서는 이벤트를 전달하며 연결이 끊겼는지 지켜봅니다.
+        # 끊기면(새 질문·창 닫기) Ollama 연결을 끊어 모델이 다음 질문을 바로 처리하게 합니다.
+        service = FastAnswerService()
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue[dict | None] = asyncio.Queue()
+
+        def worker() -> None:
+            try:
+                for event in service.stream(product_id, payload.question, history, name):
+                    loop.call_soon_threadsafe(queue.put_nowait, event)
+            except (AgentUnavailableError, ValueError) as exc:
+                if not service.cancelled:
+                    loop.call_soon_threadsafe(
+                        queue.put_nowait, {"type": "error", "message": str(exc)[:300]}
+                    )
+            except Exception as exc:  # 취소로 연결을 끊으면 읽기 오류가 날 수 있습니다.
+                if not service.cancelled:
+                    # 예상 못 한 오류도 스트림이 조용히 끝나지 않게 화면에 알립니다.
+                    logger.exception("fast answer stream failed")
+                    loop.call_soon_threadsafe(
+                        queue.put_nowait,
+                        {"type": "error", "message": f"서버 오류: {type(exc).__name__}"},
+                    )
+            finally:
+                loop.call_soon_threadsafe(queue.put_nowait, None)
+
+        threading.Thread(target=worker, daemon=True).start()
         try:
-            for event in FastAnswerService().stream(product_id, payload.question, history, name):
-                yield json.dumps(event, ensure_ascii=False) + "\n"
-        except (AgentUnavailableError, ValueError) as exc:
-            yield json.dumps({"type": "error", "message": str(exc)[:300]}, ensure_ascii=False) + "\n"
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=0.5)
+                except TimeoutError:
+                    if await request.is_disconnected():
+                        break
+                    continue
+                if event is None:
+                    break
+                yield line(event)
+        finally:
+            service.cancel()
 
     return StreamingResponse(
         events(),

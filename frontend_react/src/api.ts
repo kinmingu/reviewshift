@@ -195,6 +195,7 @@ export interface SearchResult {
 }
 
 export interface AgentAnswer {
+  question: string;
   search_query: string;
   status: "answered" | "failed";
   answer: string | null;
@@ -270,9 +271,11 @@ export async function askQuestionStream(
   question: string,
   history: { role: "user" | "assistant"; content: string }[],
   onEvent: (event: StreamEvent) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   const response = await fetch(`/api/v1/products/${id}/questions/stream`, {
     method: "POST",
+    signal,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question, history }),
   });

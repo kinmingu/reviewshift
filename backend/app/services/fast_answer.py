@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import json
 import re
+import socket
+import threading
 import time
 from collections.abc import Callable, Iterator
 from typing import Any
@@ -152,7 +154,10 @@ def verify(
 
 
 # === [Ollama 스트리밍 호출] 기존 Agent와 같은 모델·num_ctx·keep_alive로 캐시를 공유합니다 ===
-def ollama_stream(messages: list[dict[str, str]]) -> Iterator[tuple[str, dict[str, Any] | None]]:
+def ollama_stream(
+    messages: list[dict[str, str]],
+    on_open: Callable[[requests.Response], None] | None = None,
+) -> Iterator[tuple[str, dict[str, Any] | None]]:
     settings = get_settings()
     try:
         with requests.post(
@@ -169,6 +174,9 @@ def ollama_stream(messages: list[dict[str, str]]) -> Iterator[tuple[str, dict[st
             timeout=(10, settings.agent_timeout_seconds),
         ) as response:
             response.raise_for_status()
+            # 취소할 때 이 연결을 끊을 수 있게 알려 줍니다(연결이 끊기면 Ollama도 생성을 멈춤).
+            if on_open is not None:
+                on_open(response)
             for line in response.iter_lines():
                 if not line:
                     continue
@@ -193,10 +201,39 @@ class FastAnswerService:
     def __init__(
         self, *, stream_call: StreamCall | None = None, tool_transport: str = "mcp_memory"
     ) -> None:
-        self.stream_call = stream_call or ollama_stream
+        self.stream_call = stream_call or (
+            lambda messages: ollama_stream(messages, on_open=self._remember)
+        )
+        self._cancelled = threading.Event()
+        self._response: requests.Response | None = None
         self.tools = McpReviewTools(tool_transport, timeout_seconds=60)
         self.tool_transport = tool_transport
         self.model = get_settings().ollama_model
+
+    # === [취소] 사용자가 새 질문을 보내거나 창을 닫으면 모델 생성을 바로 멈춥니다 ===
+    def _remember(self, response: requests.Response) -> None:
+        self._response = response
+        if self._cancelled.is_set():
+            self.cancel()
+
+    def cancel(self) -> None:
+        """다른 스레드에서 호출합니다. 읽기 대기 중인 소켓도 shutdown으로 즉시 깨웁니다."""
+        self._cancelled.set()
+        response = self._response
+        if response is None:
+            return
+        connection = getattr(response.raw, "connection", None) or getattr(response.raw, "_connection", None)
+        sock = getattr(connection, "sock", None)
+        try:
+            if sock is not None:
+                sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        response.close()
+
+    @property
+    def cancelled(self) -> bool:
+        return self._cancelled.is_set()
 
     def stream(
         self,
@@ -228,6 +265,8 @@ class FastAnswerService:
         for result in (quick_result, report_result):
             if not result.ok or result.data is None:
                 raise AgentUnavailableError(f"{result.tool} 도구 오류: {result.error}")
+        if self.cancelled:
+            return
         quick, report = quick_result.data, report_result.data
         digest, sources, allowed = build_digest(quick, report)
         tool_calls = [
@@ -253,6 +292,8 @@ class FastAnswerService:
         answer, markers, metrics, attempts = "", [], {}, 0
         problems: list[str] = []
         while attempts < MAX_GENERATION_ATTEMPTS:
+            if self.cancelled:
+                return
             attempts += 1
             user = f"[자료]\n상품: {product_name or product_id}\n{digest}\n\n"
             if earlier:

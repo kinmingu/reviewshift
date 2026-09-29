@@ -4,7 +4,8 @@
 // - 질문마다 서버 Agent(LangGraph)가 MCP 도구로 리포트·관련 리뷰를 조회해 답하고, 인용 리뷰 ID·수치를 검증한 답만 보여 줍니다.
 // - 이전 대화는 문맥으로만 함께 보냅니다(숫자·근거는 매번 새로 조회).
 // - 질문을 보내면 먼저 '즉시 답'(LLM 없이 DB 분석 결과·관련 리뷰, MCP 도구 quick_answer)을 1초 안에 보여 줍니다.
-// - 자연스러운 설명이 필요하면 'AI에게 자세히 묻기'로 빠른 AI 답변(요약본 RAG, 약 30~40초)을 받습니다.
+// - 질문을 보내면 즉시 답과 빠른 AI 답변(요약본 RAG, 약 30~40초)을 동시에 시작합니다.
+//   즉시 답을 읽는 동안 AI 답이 이어서 나오고, 가까운 FAQ 저장 답이 있으면 AI 답은 취소합니다.
 //   글자가 나오는 대로 '검증 전'으로 보여 주고, 서버 검증을 통과하면 확정된 답으로 바꿉니다.
 // - 자주 묻는 질문은 미리 만들어 저장한 답을 즉시 보여 줍니다.
 // =====================================================================
@@ -108,7 +109,17 @@ function AnswerBubble({ result }: { result: AgentAnswer }) {
 // === [즉시 답 말풍선] DB 정리 결과(항목별 리뷰 수·대표 근거)와 비슷한 실제 리뷰 ===
 const clean = (value: string) => value.replace(/<br\s*\/?>/gi, " ");
 
-function QuickBubble({ result, onDeep, busy }: { result: QuickAnswer; onDeep: () => void; busy: boolean }) {
+function QuickBubble({
+  result,
+  onDeep,
+  busy,
+  hideDeep,
+}: {
+  result: QuickAnswer;
+  onDeep: () => void;
+  busy: boolean;
+  hideDeep: boolean;
+}) {
   return (
     <div className="bubble bot">
       <div className="tags" style={{ marginTop: 0 }}>
@@ -149,9 +160,11 @@ function QuickBubble({ result, onDeep, busy }: { result: QuickAnswer; onDeep: ()
           ))}
         </details>
       )}
-      <button className="chip" style={{ marginTop: 10 }} onClick={onDeep} disabled={busy}>
-        ✦ AI에게 자세히 묻기 (약 30~40초)
-      </button>
+      {!hideDeep && (
+        <button className="chip" style={{ marginTop: 10 }} onClick={onDeep} disabled={busy}>
+          ✦ AI에게 자세히 묻기 (약 30~40초)
+        </button>
+      )}
     </div>
   );
 }
@@ -189,19 +202,38 @@ export default function ProductChat({
   }, [messages, productId]);
 
   // === [빠른 AI 답변] 요약본 RAG, 글자가 나오는 대로 보여 주고(검증 전 표시) 끝나면 검증된 답으로 바꿉니다 ===
-  const [live, setLive] = useState<{ status: string; text: string; retried: boolean } | null>(null);
+  const [live, setLive] = useState<{ question: string; status: string; text: string; retried: boolean } | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const runRef = useRef(0);
   const ask = useMutation({
     mutationFn: async ({ question, history }: { question: string; history: { role: "user" | "assistant"; content: string }[] }) => {
+      // 새 질문이 오면 진행 중인 이전 AI 답은 취소합니다(CPU를 새 질문에 씀).
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const run = ++runRef.current;
+      const update = (change: (current: NonNullable<typeof live>) => NonNullable<typeof live>) =>
+        setLive((current) => (current && run === runRef.current ? change(current) : current));
       const received: { final: AgentAnswer | null } = { final: null };
-      setLive({ status: "관련 리뷰와 통계를 찾는 중", text: "", retried: false });
-      await askQuestionStream(productId, question, history, (event) => {
-        if (event.type === "status") setLive((current) => current && { ...current, status: event.message });
-        if (event.type === "token") setLive((current) => current && { ...current, text: current.text + event.text });
-        // 검증에서 걸러진 답은 지우고 다시 씁니다.
-        if (event.type === "retry") setLive((current) => current && { ...current, text: "", retried: true });
-        if (event.type === "done") received.final = event.result;
-        if (event.type === "error") throw new Error(event.message);
-      });
+      setLive({ question, status: "관련 리뷰와 통계를 찾는 중", text: "", retried: false });
+      try {
+        await askQuestionStream(
+          productId,
+          question,
+          history,
+          (event) => {
+            if (event.type === "status") update((current) => ({ ...current, status: event.message }));
+            if (event.type === "token") update((current) => ({ ...current, text: current.text + event.text }));
+            // 검증에서 걸러진 답은 지우고 다시 씁니다.
+            if (event.type === "retry") update((current) => ({ ...current, text: "", retried: true }));
+            if (event.type === "done") received.final = event.result;
+            if (event.type === "error") throw new Error(event.message);
+          },
+          controller.signal,
+        );
+      } finally {
+        if (run === runRef.current) setLive(null);
+      }
       if (!received.final) throw new Error("답변을 끝까지 받지 못했어요.");
       return received.final;
     },
@@ -210,13 +242,15 @@ export default function ProductChat({
       // 새로 저장된 답이 FAQ 목록에도 반영되도록 다시 불러옵니다.
       queryClient.invalidateQueries({ queryKey: ["faq", productId] });
     },
-    onError: (error) => setMessages((previous) => [...previous, { role: "error", content: (error as Error).message }]),
-    onSettled: () => setLive(null),
+    onError: (error) => {
+      // 사용자가 새 질문을 보냈거나 FAQ 답으로 충분해 취소한 경우는 오류로 보이지 않습니다.
+      if ((error as Error).name === "AbortError") return;
+      setMessages((previous) => [...previous, { role: "error", content: (error as Error).message }]);
+    },
   });
 
   // === [AI에게 자세히 묻기] 빠른 AI 답변(약 30~40초). 이번 질문 앞의 대화만 문맥으로 보냅니다 ===
   const deep = (question: string) => {
-    if (ask.isPending) return;
     const lastIndex = messages.map((message) => message.content).lastIndexOf(question);
     const before = lastIndex >= 0 ? messages.slice(0, lastIndex) : messages;
     const history = before
@@ -226,31 +260,33 @@ export default function ProductChat({
     ask.mutate({ question, history });
   };
 
-  // === [질문 보내기] 먼저 즉시 답(1초), 실패하면 AI 답변으로 넘어갑니다 ===
+  // === [질문 보내기] 즉시 답(1초)과 AI 답(약 30~40초)을 동시에 시작합니다 ===
   const quick = useMutation({
     mutationFn: (question: string) => quickAnswer(productId, question),
-    onSuccess: (result) =>
+    onSuccess: (result) => {
+      // 미리 만든 FAQ 답(AI RAG 답)이 맞으면 같은 내용을 또 만들지 않도록 AI 답을 취소합니다.
+      if (result.matched_faq) abortRef.current?.abort();
       setMessages((previous) => [
         ...previous,
         ...(result.matched_faq
           ? [{ role: "assistant" as const, content: result.matched_faq.answer ?? "", result: result.matched_faq }]
           : []),
         { role: "quick" as const, content: result.answer_text, result },
-      ]),
-    onError: (_error, question) => deep(question),
+      ]);
+    },
   });
 
   const send = (value: string) => {
     const question = value.trim();
-    if (question.length < 2 || ask.isPending || quick.isPending) return;
+    if (question.length < 2 || quick.isPending) return;
     setMessages((previous) => [...previous, { role: "user", content: question }]);
     setInput("");
     quick.mutate(question);
+    deep(question);
   };
 
   // === [자주 묻는 질문 선택] 저장된 최신 답이 있으면 즉시, 없으면 실시간으로 묻습니다 ===
   const pickFaq = (item: FaqItem) => {
-    if (ask.isPending) return;
     if (item.answer && !item.answer.is_stale) {
       const answer = item.answer;
       setMessages((previous) => [
@@ -302,6 +338,12 @@ export default function ProductChat({
               key={index}
               result={message.result}
               busy={ask.isPending}
+              hideDeep={
+                live?.question === message.result.question ||
+                messages.some(
+                  (other) => other.role === "assistant" && other.result.question === message.result.question,
+                )
+              }
               onDeep={() => deep(message.result.question)}
             />
           ) : (
@@ -326,7 +368,7 @@ export default function ProductChat({
             {live?.text ? (
               <p className="ask-answer streaming">{live.text}</p>
             ) : (
-              <small className="bubble-meta">보통 30~40초 걸려요. 글자가 나오는 대로 보여 드릴게요.</small>
+              <small className="bubble-meta">위의 즉시 답을 읽는 동안 AI 답을 함께 준비하고 있어요. 보통 30~40초 걸려요.</small>
             )}
           </div>
         )}
@@ -337,7 +379,7 @@ export default function ProductChat({
       {faqButtons.length > 0 && (
         <div className="tags faq-row">
           {faqButtons.map((item) => (
-            <button key={item.key} className="chip" onClick={() => pickFaq(item)} disabled={ask.isPending}>
+            <button key={item.key} className="chip" onClick={() => pickFaq(item)} disabled={quick.isPending}>
               {item.answer && !item.answer.is_stale ? "⚡ " : ""}
               {item.label}
             </button>
@@ -357,11 +399,10 @@ export default function ProductChat({
           value={input}
           maxLength={500}
           onChange={(event) => setInput(event.target.value)}
-          placeholder={ask.isPending ? "답변을 기다리는 중이에요" : `예: ${TYPING_HINT}`}
+          placeholder={ask.isPending ? "AI 답을 준비하는 중에도 새 질문을 할 수 있어요" : `예: ${TYPING_HINT}`}
           aria-label="질문"
-          disabled={ask.isPending}
         />
-        <button className="ask" disabled={ask.isPending || input.trim().length < 2}>
+        <button className="ask" disabled={quick.isPending || input.trim().length < 2}>
           보내기
         </button>
       </form>
