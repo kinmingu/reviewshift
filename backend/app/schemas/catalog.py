@@ -42,6 +42,10 @@ class ProductSummary(BaseModel):
     analysis_sample_size: int | None = None
     positive_review_share: float | None = None
     negative_review_share: float | None = None
+    # 상세 화면과 같은 완료 판정(최종 실패가 기준 비율 이하이면 complete)
+    analysis_status: Literal["not_started", "in_progress", "complete", "partial_failure"] = (
+        "not_started"
+    )
 
 
 # === [상품 리뷰 리포트 응답] GET /api/v1/products/{id}/insights ===

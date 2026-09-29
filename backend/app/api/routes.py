@@ -4,9 +4,11 @@
 실제 계산·검색·AI 로직은 여기에 두지 않습니다.
 """
 
+import json
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -39,6 +41,7 @@ from backend.app.services.catalog import (
     ProductNotFoundError,
 )
 from backend.app.services.embeddings import EmbeddingError
+from backend.app.services.fast_answer import FastAnswerService
 from backend.app.services.human_evaluation import (
     EvaluationNotFoundError,
     EvaluationValidationError,
@@ -271,6 +274,45 @@ def ask_product_question(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except AgentUnavailableError as exc:
         raise HTTPException(status_code=503, detail=f"AI 모델 응답 실패: {exc}") from exc
+
+
+@router.post("/api/v1/products/{product_id}/questions/stream")
+def ask_product_question_stream(
+    product_id: str, payload: AgentQuestionRequest, session: DbSession
+) -> StreamingResponse:
+    """빠른 AI 답변(요약본 RAG): 생성되는 글자를 NDJSON 이벤트로 바로 보내고, 끝나면 검증 결과를 보냅니다.
+
+    이벤트: status · token · retry(검증 실패로 다시 생성, 화면의 글을 지움) · done(result) · error
+    """
+    product = CatalogService(session).products.get(product_id)
+    if product is None:
+        raise _not_found(product_id)
+    history = [turn.model_dump() for turn in payload.history]
+    # 대화 첫 질문이고 같은 질문의 최신 저장 답(FAQ 포함)이 있으면 그대로 돌려줍니다.
+    cached = None
+    if not history:
+        store = AnswerStore(session)
+        snapshot = store.snapshot(product_id)
+        row = store.get(product_id, payload.question)
+        if row is not None and not store.is_stale(row, snapshot):
+            cached = store.to_response(row, snapshot).model_dump(mode="json")
+    name = str(product.metadata_json.get("title_ko") or product.title)
+
+    def events():
+        if cached is not None:
+            yield json.dumps({"type": "done", "result": cached, "metrics": {}}, ensure_ascii=False) + "\n"
+            return
+        try:
+            for event in FastAnswerService().stream(product_id, payload.question, history, name):
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+        except (AgentUnavailableError, ValueError) as exc:
+            yield json.dumps({"type": "error", "message": str(exc)[:300]}, ensure_ascii=False) + "\n"
+
+    return StreamingResponse(
+        events(),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/api/v1/products/{product_id}/search", response_model=ReviewSearchResponse)

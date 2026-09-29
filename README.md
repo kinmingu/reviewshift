@@ -302,6 +302,20 @@ claude mcp add reviewshift -- C:\workspaces\ag_f_prj\.venv\Scripts\python.exe -m
 인용·수치를 검증한다. 화면의 도구 기록에 `[MCP]`로 표시된다. `.env`의 `AGENT_TOOL_TRANSPORT`로 바꿀 수 있다
 (`mcp_stdio` 기본, `mcp_memory` 같은 프로세스 MCP 연결, `direct` 함수 직접 호출).
 
+### 빠른 AI 답변 (요약본 RAG + 스트리밍)
+
+챗봇의 'AI에게 자세히 묻기'는 `/questions/stream`을 쓴다. 리뷰 원문 대신 관련 항목의 DB 집계와 근거 문장
+한 줄씩만 LLM에 준다. 생성되는 글자는 '검증 전'으로 바로 보여 주고, 끝나면 인용 번호와 수치를 검증한다.
+같은 질문으로 CPU에서 실측한 결과는 다음과 같다.
+
+| 방식 | LLM 입력 | 첫 글자 | 전체 |
+|---|---|---|---|
+| 기존 상세 Agent (`/questions`) | 1,956토큰 | 답이 끝나야 표시 | 164초 |
+| 빠른 AI 답변 (`/questions/stream`) | 약 460~480토큰 | 약 18~20초 | 약 33~37초 |
+
+Ollama 프롬프트 캐시는 요청 전체가 같을 때만 재사용된다(12.6초 → 0.3초). qwen3.5에서는 지시문만 같은
+요청의 부분 재사용이 되지 않는다. 그래서 속도 개선은 주로 입력 축소와 스트리밍에서 나온다.
+
 ## Docker로 한 번에 실행 (DB + API + 화면)
 
 `compose.yaml`의 `app` 프로필로 API(`Dockerfile.api`)와 React 화면(`frontend_react/Dockerfile`, nginx)을

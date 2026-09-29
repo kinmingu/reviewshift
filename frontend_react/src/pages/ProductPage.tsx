@@ -50,7 +50,11 @@ function Hero({ product, insights }: { product: ProductDetail; insights: Product
           <div className="fact">
             <dt>AI 분석</dt>
             <dd>
-              <AnalysisBadge analyzed={insights.analysis.succeeded} total={insights.analysis.total} />{" "}
+              <AnalysisBadge
+                analyzed={insights.analysis.succeeded}
+                total={insights.analysis.total}
+                status={insights.analysis.status}
+              />{" "}
               <small>
                 {insights.analysis.sample_size !== null
                   ? `전체 ${insights.analysis.stored_reviews}건 중 표본 ${insights.analysis.total}건 · 분석 ${insights.analysis.succeeded}건`

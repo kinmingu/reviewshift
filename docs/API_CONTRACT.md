@@ -31,6 +31,8 @@ fixture와 실제 데이터는 한 목록에서 섞이지 않는다.
 `review_count`는 해당 제품에 실제 저장된 적격·중복 제거 리뷰 수다.
 `source_average_rating`과 `source_rating_count`는 Amazon 원천 상품 메타데이터의 평균 평점과
 평점 등록 수다. `source_rating_count`는 실제 구매 수나 판매량으로 해석하지 않는다.
+`analysis_status`(`not_started|in_progress|complete|partial_failure`)는 상세 리포트의 `analysis.status`와
+같은 규칙이다. 재시도 후에도 실패한 리뷰가 `ANALYSIS_MAX_FAILURE_RATE`(5%) 이하이면 `complete`다.
 
 ## GET `/api/v1/products/{product_id}`
 
@@ -198,4 +200,27 @@ LLM 없이 1초 안팎으로 답하는 즉시 답변. 본문 `{"question": "..."
 MCP 연결로 호출한다. 질문 임베딩(bge-m3) 1회로 ① 가까운 FAQ(유사도 0.80 이상, 최신일 때 저장 답 포함) ② 가까운 분석
 항목 2개의 SQL 집계(언급·좋아요·아쉬워요 리뷰 수)와 대표 근거 ③ 상품·저장 월로 제한한 pgvector 관련 리뷰 4건을
 돌려준다. `answer_text`는 DB 값으로 만든 요약이며 수치를 새로 계산하지 않는다. 없는 상품 404, 질문 길이 422,
-임베딩 모델 오류 503. 화면은 즉시 답을 먼저 보여 주고 'AI에게 자세히 묻기'에서 `/questions`를 호출한다.
+임베딩 모델 오류 503. 화면은 즉시 답을 먼저 보여 주고 'AI에게 자세히 묻기'에서 `/questions/stream`을 호출한다.
+
+## POST `/api/v1/products/{product_id}/questions/stream`
+
+빠른 AI 답변(요약본 RAG + 스트리밍). 본문은 `/questions`와 같다(`question`, `history`). 응답은
+`application/x-ndjson`이며 한 줄이 이벤트 하나다.
+
+- `{"type":"status","message"}`: 진행 단계(자료 찾기 → 답변 쓰기)
+- `{"type":"token","text"}`: 생성되는 글자 조각. **검증 전**이므로 화면에 '검증 전'으로 표시한다.
+- `{"type":"retry","reason"}`: 검증 실패로 다시 생성한다. 화면은 받은 글자를 지운다.
+- `{"type":"done","result","metrics"}`: `result`는 `/questions`와 같은 `AgentAnswerResponse` 형식이다.
+  `status=failed`이면 `answer`는 null이다. `metrics`는 Ollama 입력·출력 토큰 수와 시간이다.
+- `{"type":"error","message"}`: 모델·도구 오류(스트림 도중이라 HTTP 상태는 200)
+
+자료는 MCP 도구 `quick_answer`와 `get_product_report`(같은 프로세스 MCP 연결)로 모은다. LLM에는 관련 항목의
+서버 계산 수치와 근거 문장 한 줄씩만 번호([1]…)를 붙여 준다(약 450토큰). 검증 규칙은 다음과 같다.
+- 인용 번호는 자료에 있는 번호여야 한다.
+- %는 자료 값과 같아야 한다.
+- 내부 용어와 이전 답 반복을 금지한다.
+- 실패하면 1회 다시 생성한다.
+
+대화 첫 질문이고 같은 질문의 최신 저장 답(FAQ 포함)이 있으면 곧바로 `done`만 보낸다. 없는 상품은 404,
+질문 길이 오류는 422다. `prompt_version=review-qa-fast-v1`. 기존 `/questions`(리뷰 원문을 읽는 상세 Agent)는
+FAQ 생성에 계속 쓴다.

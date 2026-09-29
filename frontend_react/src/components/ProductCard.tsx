@@ -7,9 +7,19 @@ import type { ProductSummary } from "../api";
 import SentimentBar from "./SentimentBar";
 
 // 분석 진행 상태를 카드 배지로 표시합니다(분석 전 리뷰를 불만 없음으로 보이지 않게).
-export function AnalysisBadge({ analyzed, total }: { analyzed: number; total: number }) {
+// 완료 판정은 서버 규칙을 따릅니다: 재시도해도 실패한 리뷰가 기준(5%) 이하이면 '완료'.
+export function AnalysisBadge({
+  analyzed,
+  total,
+  status,
+}: {
+  analyzed: number;
+  total: number;
+  status: "not_started" | "in_progress" | "complete" | "partial_failure";
+}) {
+  if (status === "complete") return <span className="badge done">리뷰 분석 완료</span>;
+  if (status === "partial_failure") return <span className="badge warn">일부 분석 실패</span>;
   if (!analyzed) return <span className="badge idle">분석 전</span>;
-  if (analyzed >= total) return <span className="badge done">리뷰 분석 완료</span>;
   return <span className="badge ai">분석 중 {Math.floor((analyzed / total) * 100)}%</span>;
 }
 
@@ -20,6 +30,7 @@ export default function ProductCard({ product }: { product: ProductSummary }) {
         <AnalysisBadge
           analyzed={product.analyzed_review_count}
           total={product.analysis_sample_size ?? product.review_count}
+          status={product.analysis_status}
         />
         {product.image_url ? (
           <img src={product.image_url} alt="" loading="lazy" />

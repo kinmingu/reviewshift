@@ -331,6 +331,10 @@ mark.neutral, mark.uncertain { background: var(--highlight); }
 .bubble.me { align-self: flex-end; background: var(--ink); color: #fff; border-bottom-right-radius: 4px; white-space: pre-line; }
 .bubble.bot { align-self: flex-start; background: var(--card); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
 .bubble.bot .ask-answer { margin: 6px 0; }
+/* 검증 전 스트리밍 글자는 흐리게 표시하고 끝에 커서를 깜빡입니다 */
+.ask-answer.streaming { color: var(--ink-soft); }
+.ask-answer.streaming::after { content: "▍"; margin-left: 2px; color: var(--ai); animation: blink 1s steps(2) infinite; }
+@keyframes blink { to { visibility: hidden; } }
 .bubble .quote { border-left-color: var(--ai); font-size: 13px; }
 .bubble .quote.negative { border-left-color: var(--negative); }
 .bubble .quote.positive { border-left-color: var(--positive); }

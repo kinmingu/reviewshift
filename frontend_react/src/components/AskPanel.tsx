@@ -4,13 +4,14 @@
 // - 질문마다 서버 Agent(LangGraph)가 MCP 도구로 리포트·관련 리뷰를 조회해 답하고, 인용 리뷰 ID·수치를 검증한 답만 보여 줍니다.
 // - 이전 대화는 문맥으로만 함께 보냅니다(숫자·근거는 매번 새로 조회).
 // - 질문을 보내면 먼저 '즉시 답'(LLM 없이 DB 분석 결과·관련 리뷰, MCP 도구 quick_answer)을 1초 안에 보여 줍니다.
-// - 자연스러운 설명이 필요하면 'AI에게 자세히 묻기'로 실시간 AI 답변(CPU 1~3분)을 받습니다.
+// - 자연스러운 설명이 필요하면 'AI에게 자세히 묻기'로 빠른 AI 답변(요약본 RAG, 약 30~40초)을 받습니다.
+//   글자가 나오는 대로 '검증 전'으로 보여 주고, 서버 검증을 통과하면 확정된 답으로 바꿉니다.
 // - 자주 묻는 질문은 미리 만들어 저장한 답을 즉시 보여 줍니다.
 // =====================================================================
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { askQuestion, fetchFaq, quickAnswer, type AgentAnswer, type FaqItem, type QuickAnswer } from "../api";
+import { askQuestionStream, fetchFaq, quickAnswer, type AgentAnswer, type FaqItem, type QuickAnswer } from "../api";
 import { dateLabel } from "../lib/format";
 
 type Message =
@@ -149,7 +150,7 @@ function QuickBubble({ result, onDeep, busy }: { result: QuickAnswer; onDeep: ()
         </details>
       )}
       <button className="chip" style={{ marginTop: 10 }} onClick={onDeep} disabled={busy}>
-        ✦ AI에게 자세히 묻기 (1~3분)
+        ✦ AI에게 자세히 묻기 (약 30~40초)
       </button>
     </div>
   );
@@ -187,18 +188,33 @@ export default function ProductChat({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, productId]);
 
+  // === [빠른 AI 답변] 요약본 RAG, 글자가 나오는 대로 보여 주고(검증 전 표시) 끝나면 검증된 답으로 바꿉니다 ===
+  const [live, setLive] = useState<{ status: string; text: string; retried: boolean } | null>(null);
   const ask = useMutation({
-    mutationFn: ({ question, history }: { question: string; history: { role: "user" | "assistant"; content: string }[] }) =>
-      askQuestion(productId, question, history),
+    mutationFn: async ({ question, history }: { question: string; history: { role: "user" | "assistant"; content: string }[] }) => {
+      const received: { final: AgentAnswer | null } = { final: null };
+      setLive({ status: "관련 리뷰와 통계를 찾는 중", text: "", retried: false });
+      await askQuestionStream(productId, question, history, (event) => {
+        if (event.type === "status") setLive((current) => current && { ...current, status: event.message });
+        if (event.type === "token") setLive((current) => current && { ...current, text: current.text + event.text });
+        // 검증에서 걸러진 답은 지우고 다시 씁니다.
+        if (event.type === "retry") setLive((current) => current && { ...current, text: "", retried: true });
+        if (event.type === "done") received.final = event.result;
+        if (event.type === "error") throw new Error(event.message);
+      });
+      if (!received.final) throw new Error("답변을 끝까지 받지 못했어요.");
+      return received.final;
+    },
     onSuccess: (result) => {
       setMessages((previous) => [...previous, { role: "assistant", content: result.answer ?? "", result }]);
       // 새로 저장된 답이 FAQ 목록에도 반영되도록 다시 불러옵니다.
       queryClient.invalidateQueries({ queryKey: ["faq", productId] });
     },
     onError: (error) => setMessages((previous) => [...previous, { role: "error", content: (error as Error).message }]),
+    onSettled: () => setLive(null),
   });
 
-  // === [AI에게 자세히 묻기] 실시간 AI 답변(CPU 1~3분). 이번 질문 앞의 대화만 문맥으로 보냅니다 ===
+  // === [AI에게 자세히 묻기] 빠른 AI 답변(약 30~40초). 이번 질문 앞의 대화만 문맥으로 보냅니다 ===
   const deep = (question: string) => {
     if (ask.isPending) return;
     const lastIndex = messages.map((message) => message.content).lastIndexOf(question);
@@ -302,9 +318,16 @@ export default function ProductChat({
         {ask.isPending && (
           <div className="bubble bot">
             <span className="badge ai">
-              리뷰를 찾아 읽는 중 · <Elapsed />
+              {live?.text ? "AI가 답변을 쓰는 중 · 검증 전" : (live?.status ?? "관련 리뷰와 통계를 찾는 중")} · <Elapsed />
             </span>
-            <small className="bubble-meta">로컬 CPU 모델이라 1~4분 걸릴 수 있어요.</small>
+            {live?.retried && (
+              <small className="bubble-meta">검증에서 걸러진 답을 지우고 다시 쓰고 있어요.</small>
+            )}
+            {live?.text ? (
+              <p className="ask-answer streaming">{live.text}</p>
+            ) : (
+              <small className="bubble-meta">보통 30~40초 걸려요. 글자가 나오는 대로 보여 드릴게요.</small>
+            )}
           </div>
         )}
         <div ref={bottomRef} />

@@ -359,14 +359,7 @@ class CatalogService:
 
         # 상품 전체 기간의 처리 현황(월 비교와 같은 완료 판정 규칙). 표본이 있으면 표본이 대상입니다.
         sample = self._sample_ids(product)
-        all_time = self._analysis_coverage(
-            product_id,
-            datetime(1990, 1, 1, tzinfo=UTC),
-            datetime(2101, 1, 1, tzinfo=UTC),
-            run,
-            len(sample) if sample is not None else review_count,
-            sample,
-        )
+        all_time = self._all_time_coverage(product, run, review_count)
         succeeded = all_time.succeeded
         analysis = AnalysisOverview(
             total=all_time.total,
@@ -552,10 +545,29 @@ class CatalogService:
             polarity_reviews.get("negative", 0) / analyzed,
         )
 
+    # 상품 전체 저장 기간의 분석 진행 상황(표본이 있으면 표본만 대상).
+    def _all_time_coverage(
+        self, product: Product, run: AnalysisRun | None, review_count: int
+    ) -> AnalysisCoverageAggregate:
+        sample = self._sample_ids(product)
+        return self._analysis_coverage(
+            product.id,
+            datetime(1990, 1, 1, tzinfo=UTC),
+            datetime(2101, 1, 1, tzinfo=UTC),
+            run,
+            len(sample) if sample is not None else review_count,
+            sample,
+        )
+
     # 상품을 카드 요약 형식(ProductSummary)으로 바꿉니다.
     def _summary(self, product: Product) -> ProductSummary:
         analyzed, positive_share, negative_share = self._card_analysis(product)
+        review_count = self.products.review_count(product.id)
+        coverage = self._all_time_coverage(product, self._active_run(product), review_count)
         return ProductSummary(
+            analysis_status=self._period_status(
+                coverage, get_settings().analysis_max_failure_rate
+            ),
             analyzed_review_count=analyzed,
             analysis_sample_size=(
                 len(sample) if (sample := self._sample_ids(product)) is not None else None
@@ -571,7 +583,7 @@ class CatalogService:
             ),
             category=product.category,
             image_url=product.image_url,
-            review_count=self.products.review_count(product.id),
+            review_count=review_count,
             source_average_rating=(
                 float(product.metadata_json["source_average_rating"])
                 if product.metadata_json.get("source_average_rating") is not None

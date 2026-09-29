@@ -22,6 +22,7 @@ export interface ProductSummary {
   analysis_sample_size: number | null;
   positive_review_share: number | null;
   negative_review_share: number | null;
+  analysis_status: "not_started" | "in_progress" | "complete" | "partial_failure";
 }
 
 export interface ProductDetail extends ProductSummary {
@@ -254,6 +255,47 @@ export async function askQuestion(
     throw new Error(typeof body.detail === "string" ? body.detail : `질문 실패 (${response.status})`);
   }
   return response.json();
+}
+
+// === [빠른 AI 답변] 요약본 RAG를 글자가 나오는 대로 받습니다(NDJSON 한 줄 = 이벤트 하나) ===
+export type StreamEvent =
+  | { type: "status"; message: string }
+  | { type: "token"; text: string }
+  | { type: "retry"; reason: string }
+  | { type: "done"; result: AgentAnswer; metrics: Record<string, number> }
+  | { type: "error"; message: string };
+
+export async function askQuestionStream(
+  id: string,
+  question: string,
+  history: { role: "user" | "assistant"; content: string }[],
+  onEvent: (event: StreamEvent) => void,
+): Promise<void> {
+  const response = await fetch(`/api/v1/products/${id}/questions/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, history }),
+  });
+  if (!response.ok || !response.body) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(typeof body.detail === "string" ? body.detail : `질문 실패 (${response.status})`);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let end = buffer.indexOf("\n");
+    while (end >= 0) {
+      const line = buffer.slice(0, end).trim();
+      buffer = buffer.slice(end + 1);
+      if (line) onEvent(JSON.parse(line) as StreamEvent);
+      end = buffer.indexOf("\n");
+    }
+  }
+  if (buffer.trim()) onEvent(JSON.parse(buffer) as StreamEvent);
 }
 
 // === [이상징후 탐지] 모든 상품·인접 두 달 통계 검정 결과 ===
