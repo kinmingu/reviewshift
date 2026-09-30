@@ -367,6 +367,12 @@ mark.neutral, mark.uncertain { background: var(--highlight); }
 .chat-panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line); font-size: 16px; }
 .chat-panel-head small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chat-panel-actions { display: flex; gap: 12px; flex-shrink: 0; padding-top: 2px; }
+/* 머리 부분을 끌어 창 옮기기, 모서리 손잡이로 크기 조절 */
+.chat-panel-head.movable { cursor: move; user-select: none; touch-action: none; }
+.chat-resize { position: absolute; width: 18px; height: 18px; z-index: 2; touch-action: none; }
+.chat-resize.tl { left: 0; top: 0; cursor: nwse-resize; }
+.chat-resize.br { right: 0; bottom: 0; cursor: nwse-resize; }
+.chat-resize.br::after { content: ""; position: absolute; right: 4px; bottom: 4px; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); border-radius: 0 0 3px 0; }
 .chat-panel .ask-form { margin: 0; padding: 12px 14px; border-top: 1px solid var(--line); background: var(--card); }
 .chat-panel .faq-row + .ask-form { border-top: 0; }
 .chat-product { display: flex; align-items: center; gap: 10px; margin-top: 8px; text-align: left; }

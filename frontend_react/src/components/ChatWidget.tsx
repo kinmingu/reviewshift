@@ -12,6 +12,7 @@ import { useLocation } from "react-router-dom";
 
 import { api, type ProductSummary } from "../api";
 import { categoryName } from "../lib/format";
+import { usePanelFrame } from "../lib/usePanelFrame";
 import ProductChat, { clearChat } from "./AskPanel";
 
 type PickerMessage =
@@ -108,6 +109,7 @@ export default function ChatWidget() {
   const [pickerLog, setPickerLog] = useState<PickerMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
+  const frame = usePanelFrame();
 
   const products = useQuery({ queryKey: ["products", "chat-all"], queryFn: () => api.products({}), enabled: open });
   const items = products.data?.items ?? [];
@@ -165,9 +167,21 @@ export default function ChatWidget() {
   return (
     <>
       {open && (
-        <div className="chat-panel" role="dialog" aria-label="AI 리뷰 챗봇">
-          {/* === [헤더] 선택한 제품 · 제품 바꾸기 · 새 대화 · 닫기 === */}
-          <div className="chat-panel-head">
+        <div className="chat-panel" role="dialog" aria-label="AI 리뷰 챗봇" style={frame.style}>
+          {/* === [크기 조절 손잡이] 왼쪽 위·오른쪽 아래 모서리를 끌어 크기를 바꿉니다 === */}
+          {!frame.mobile && (
+            <>
+              <span className="chat-resize tl" title="끌어서 크기 조절" {...frame.handlers("resize-tl")} />
+              <span className="chat-resize br" title="끌어서 크기 조절" {...frame.handlers("resize-br")} />
+            </>
+          )}
+          {/* === [헤더] 끌어서 창 옮기기(두 번 클릭하면 원래 자리) · 제품 바꾸기 · 새 대화 · 닫기 === */}
+          <div
+            className={`chat-panel-head ${frame.mobile ? "" : "movable"}`}
+            {...(frame.mobile ? {} : frame.handlers("move"))}
+            onDoubleClick={frame.mobile ? undefined : frame.reset}
+            title={frame.mobile ? undefined : "끌어서 옮기기 · 두 번 클릭하면 원래 위치와 크기로"}
+          >
             <div style={{ minWidth: 0 }}>
               <b>AI 리뷰 챗봇</b>
               <small className="bubble-meta" style={{ cursor: "default" }}>
