@@ -208,6 +208,7 @@ MCP 연결로 호출한다. 질문 임베딩(bge-m3) 1회로 ① 가까운 FAQ(�
 `application/x-ndjson`이며 한 줄이 이벤트 하나다.
 
 - `{"type":"status","message"}`: 진행 단계(자료 찾기 → 답변 쓰기)
+- `{"type":"sources","items":[{"number","rating","label","text","review_id"}]}`: AI가 읽을 근거 리뷰. 자료를 찾은 직후(약 3초) 답보다 먼저 보낸다. 화면은 기다리는 동안 "AI가 읽는 리뷰"로 보여 준다.
 - `{"type":"token","text"}`: 생성되는 글자 조각. **검증 전**이므로 화면에 '검증 전'으로 표시한다.
 - `{"type":"retry","reason"}`: 검증 실패로 다시 생성한다. 화면은 받은 글자를 지운다.
 - `{"type":"done","result","metrics"}`: `result`는 `/questions`와 같은 `AgentAnswerResponse` 형식이다.

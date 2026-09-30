@@ -12,13 +12,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { askQuestionStream, fetchFaq, quickAnswer, type AgentAnswer, type FaqItem, type QuickAnswer } from "../api";
+import {
+  askQuestionStream,
+  fetchFaq,
+  quickAnswer,
+  type AgentAnswer,
+  type FaqItem,
+  type QuickAnswer,
+  type StreamSource,
+} from "../api";
 import { dateLabel } from "../lib/format";
 
 type Message =
   | { role: "user"; content: string }
   | { role: "assistant"; content: string; result: AgentAnswer }
-  | { role: "quick"; content: string; result: QuickAnswer }
+  | { role: "quick"; content: string; result: QuickAnswer; createdAt?: number }
   | { role: "error"; content: string };
 
 const TYPING_HINT = "이거 샀는데 금방 고장 났어요. 원래 이런 문제가 있나요?";
@@ -106,6 +114,21 @@ function AnswerBubble({ result }: { result: AgentAnswer }) {
   );
 }
 
+// === [타자 효과] 방금 도착한 답만 약 1초 동안 글자를 차례로 보여 줍니다(새로고침으로 복원한 답은 바로 표시) ===
+const TYPING_MS = 1000;
+
+function TypedText({ text, createdAt }: { text: string; createdAt?: number }) {
+  const fresh = createdAt !== undefined && Date.now() - createdAt < 3000;
+  const [shown, setShown] = useState(fresh ? 0 : text.length);
+  useEffect(() => {
+    if (shown >= text.length) return;
+    const step = Math.max(1, Math.ceil(text.length / (TYPING_MS / 16)));
+    const timer = setTimeout(() => setShown((value) => Math.min(text.length, value + step)), 16);
+    return () => clearTimeout(timer);
+  }, [shown, text]);
+  return <>{text.slice(0, shown)}</>;
+}
+
 // === [즉시 답 말풍선] DB 정리 결과(항목별 리뷰 수·대표 근거)와 비슷한 실제 리뷰 ===
 const clean = (value: string) => value.replace(/<br\s*\/?>/gi, " ");
 
@@ -114,11 +137,13 @@ function QuickBubble({
   onDeep,
   busy,
   hideDeep,
+  createdAt,
 }: {
   result: QuickAnswer;
   onDeep: () => void;
   busy: boolean;
   hideDeep: boolean;
+  createdAt?: number;
 }) {
   return (
     <div className="bubble bot">
@@ -126,7 +151,9 @@ function QuickBubble({
         <span className="badge done">즉시 답 · 리뷰 데이터 기준 · {(result.latency_ms / 1000).toFixed(1)}초</span>
         {result.is_small_sample && <span className="badge ai">분석 리뷰가 적어 참고용</span>}
       </div>
-      <p className="ask-answer">{result.answer_text}</p>
+      <p className="ask-answer">
+        <TypedText text={result.answer_text} createdAt={createdAt} />
+      </p>
       {result.aspects.some((aspect) => aspect.examples.length > 0) && (
         <details open>
           <summary className="bubble-meta">항목별 대표 근거</summary>
@@ -202,7 +229,13 @@ export default function ProductChat({
   }, [messages, productId]);
 
   // === [빠른 AI 답변] 요약본 RAG, 글자가 나오는 대로 보여 주고(검증 전 표시) 끝나면 검증된 답으로 바꿉니다 ===
-  const [live, setLive] = useState<{ question: string; status: string; text: string; retried: boolean } | null>(null);
+  const [live, setLive] = useState<{
+    question: string;
+    status: string;
+    text: string;
+    retried: boolean;
+    sources: StreamSource[];
+  } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const runRef = useRef(0);
   const ask = useMutation({
@@ -215,7 +248,7 @@ export default function ProductChat({
       const update = (change: (current: NonNullable<typeof live>) => NonNullable<typeof live>) =>
         setLive((current) => (current && run === runRef.current ? change(current) : current));
       const received: { final: AgentAnswer | null } = { final: null };
-      setLive({ question, status: "관련 리뷰와 통계를 찾는 중", text: "", retried: false });
+      setLive({ question, status: "관련 리뷰와 통계를 찾는 중", text: "", retried: false, sources: [] });
       try {
         await askQuestionStream(
           productId,
@@ -223,6 +256,7 @@ export default function ProductChat({
           history,
           (event) => {
             if (event.type === "status") update((current) => ({ ...current, status: event.message }));
+            if (event.type === "sources") update((current) => ({ ...current, sources: event.items }));
             if (event.type === "token") update((current) => ({ ...current, text: current.text + event.text }));
             // 검증에서 걸러진 답은 지우고 다시 씁니다.
             if (event.type === "retry") update((current) => ({ ...current, text: "", retried: true }));
@@ -271,7 +305,7 @@ export default function ProductChat({
         ...(result.matched_faq
           ? [{ role: "assistant" as const, content: result.matched_faq.answer ?? "", result: result.matched_faq }]
           : []),
-        { role: "quick" as const, content: result.answer_text, result },
+        { role: "quick" as const, content: result.answer_text, result, createdAt: Date.now() },
       ]);
     },
   });
@@ -338,6 +372,7 @@ export default function ProductChat({
               key={index}
               result={message.result}
               busy={ask.isPending}
+              createdAt={message.createdAt}
               hideDeep={
                 live?.question === message.result.question ||
                 messages.some(
@@ -364,6 +399,19 @@ export default function ProductChat({
             </span>
             {live?.retried && (
               <small className="bubble-meta">검증에서 걸러진 답을 지우고 다시 쓰고 있어요.</small>
+            )}
+            {live && live.sources.length > 0 && (
+              <div className="reading">
+                <small className="bubble-meta">✦ AI가 이 리뷰 {live.sources.length}건을 근거로 읽고 있어요</small>
+                {live.sources.map((source) => (
+                  <blockquote key={source.number} className="quote reading-item">
+                    <b>[{source.number}]</b> “{source.text}”
+                    <small>
+                      ★{source.rating} · {source.label}
+                    </small>
+                  </blockquote>
+                ))}
+              </div>
             )}
             {live?.text ? (
               <p className="ask-answer streaming">{live.text}</p>

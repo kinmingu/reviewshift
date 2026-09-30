@@ -318,6 +318,15 @@ class FastAnswerService:
                 strict=True,
             )
         ]
+        # AI가 읽을 근거 리뷰를 먼저 보내, 답을 기다리는 동안 화면에 'AI가 읽는 리뷰'로 보여 줍니다.
+        yield {
+            "type": "sources",
+            "items": [
+                {"number": number, "rating": source["rating"], "label": source["label"],
+                 "text": source["text"], "review_id": source["review_id"]}
+                for number, source in enumerate(sources, 1)
+            ],
+        }
 
         # 2) 요약본 RAG 생성(스트리밍) + 검증, 실패 시 1회 재생성
         previous = next(

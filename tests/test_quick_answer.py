@@ -47,6 +47,17 @@ def test_question_is_linked_to_matching_aspects_with_db_counts() -> None:
         assert aspect["mention_count"] >= max(aspect["positive_count"], aspect["negative_count"])
 
 
+def test_compose_explains_when_one_review_counts_both_ways() -> None:
+    aspects = [{"name_ko": "소재 촉감", "mention_count": 9, "positive_count": 9, "negative_count": 1}]
+    text = QuickAnswerService._compose(aspects, analyzed=101, related=0)
+    assert "9건 언급 (좋아요 9건, 아쉬워요 1건)" in text
+    assert "양쪽에 모두 세어요" in text
+    plain = QuickAnswerService._compose(
+        [{"name_ko": "포장", "mention_count": 4, "positive_count": 0, "negative_count": 3}], 101, 0
+    )
+    assert "양쪽에 모두" not in plain
+
+
 def test_faq_like_question_returns_stored_faq_only_when_available() -> None:
     with SessionLocal() as session:
         result = QuickAnswerService(session).answer(PRODUCT, "배송이나 포장 문제는 없나요?")

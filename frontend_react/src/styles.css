@@ -333,6 +333,13 @@ mark.neutral, mark.uncertain { background: var(--highlight); }
 .bubble.bot .ask-answer { margin: 6px 0; }
 /* 검증 전 스트리밍 글자는 흐리게 표시하고 끝에 커서를 깜빡입니다 */
 .ask-answer.streaming { color: var(--ink-soft); }
+/* AI가 읽는 근거 리뷰: 하나씩 나타나며 검색 → 읽기 → 답변 과정을 보여 줍니다 */
+.reading { margin: 6px 0 8px; }
+.reading-item { font-size: 12.5px; margin: 6px 0; opacity: 0; animation: reading-in 0.35s ease forwards; }
+.reading-item:nth-child(2) { animation-delay: 0.05s; } .reading-item:nth-child(3) { animation-delay: 0.3s; }
+.reading-item:nth-child(4) { animation-delay: 0.55s; } .reading-item:nth-child(5) { animation-delay: 0.8s; }
+.reading-item:nth-child(6) { animation-delay: 1.05s; } .reading-item:nth-child(7) { animation-delay: 1.3s; }
+@keyframes reading-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .ask-answer.streaming::after { content: "▍"; margin-left: 2px; color: var(--ai); animation: blink 1s steps(2) infinite; }
 @keyframes blink { to { visibility: hidden; } }
 .bubble .quote { border-left-color: var(--ai); font-size: 13px; }

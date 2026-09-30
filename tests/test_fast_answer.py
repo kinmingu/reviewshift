@@ -132,6 +132,11 @@ def test_stream_emits_tokens_then_verified_answer_with_cited_reviews() -> None:
     events = list(_service(stream).stream("p", "고장이 잦나요?", product_name="커피"))
     types = [event["type"] for event in events]
     assert types[0] == "status" and "token" in types and types[-1] == "done"
+    # 답을 쓰기 전에 AI가 읽을 근거 리뷰를 번호와 함께 먼저 보냅니다.
+    sources = next(event for event in events if event["type"] == "sources")
+    assert types.index("sources") < types.index("token")
+    assert [item["number"] for item in sources["items"]] == [1, 2, 3]
+    assert sources["items"][2]["review_id"] == "r3"
     assert "".join(e["text"] for e in events if e["type"] == "token") == "고장 리뷰는 20%예요 [3]."
     result = events[-1]["result"]
     assert result["status"] == "answered"

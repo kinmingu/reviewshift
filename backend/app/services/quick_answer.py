@@ -189,14 +189,19 @@ class QuickAnswerService:
     def _compose(aspects: list[dict[str, Any]], analyzed: int, related: int) -> str:
         """DB 값만으로 만든 짧은 한국어 요약(수치를 새로 계산하지 않음)."""
         lines = [f"AI가 분석한 리뷰 {analyzed}건에서 질문과 관련된 항목을 찾았어요."]
+        mixed = False
         for item in aspects:
             if item["mention_count"]:
                 lines.append(
                     f"· {item['name_ko']}: {item['mention_count']}건 언급 "
-                    f"(아쉬워요 {item['negative_count']}건, 좋아요 {item['positive_count']}건)"
+                    f"(좋아요 {item['positive_count']}건, 아쉬워요 {item['negative_count']}건)"
                 )
+                # 한 리뷰가 좋은 점과 아쉬운 점을 함께 말하면 두 수의 합이 언급 수보다 큽니다.
+                mixed = mixed or item["positive_count"] + item["negative_count"] > item["mention_count"]
             else:
                 lines.append(f"· {item['name_ko']}: 분석된 리뷰에서 언급이 없어요")
+        if mixed:
+            lines.append("(한 리뷰가 좋은 점과 아쉬운 점을 함께 말하면 양쪽에 모두 세어요.)")
         if related:
             lines.append(f"질문과 비슷한 실제 리뷰 {related}건을 아래에 모았어요.")
         if analyzed < SMALL_SAMPLE:

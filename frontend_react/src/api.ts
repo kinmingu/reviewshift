@@ -259,9 +259,19 @@ export async function askQuestion(
 }
 
 // === [빠른 AI 답변] 요약본 RAG를 글자가 나오는 대로 받습니다(NDJSON 한 줄 = 이벤트 하나) ===
+export interface StreamSource {
+  number: number;
+  rating: number;
+  label: string;
+  text: string;
+  review_id: string;
+}
+
 export type StreamEvent =
   | { type: "status"; message: string }
   | { type: "token"; text: string }
+  // AI가 읽을 근거 리뷰(답을 쓰기 전에 먼저 도착)
+  | { type: "sources"; items: StreamSource[] }
   | { type: "retry"; reason: string }
   | { type: "done"; result: AgentAnswer; metrics: Record<string, number> }
   | { type: "error"; message: string };
