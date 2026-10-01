@@ -37,9 +37,13 @@ from backend.app.services.review_agent import (
     _unknown_percents,
 )
 
-FAST_PROMPT_VERSION = "review-qa-fast-v1"
+# v2: 지시문은 v1과 같고, 질문 관련 항목의 근거 문장이 있는데 인용 번호가 하나도 없는 답을 검증에서 거부합니다.
+FAST_PROMPT_VERSION = "review-qa-fast-v2"
+# 이전 버전으로 미리 만든 FAQ 답도 계속 읽습니다(새로 만들면 최신 버전 답이 우선).
+FAST_PROMPT_VERSIONS_READABLE = ("review-qa-fast-v1", FAST_PROMPT_VERSION)
 MAX_GENERATION_ATTEMPTS = 2
 EVIDENCE_CHARS = 100
+RELATED_LABEL = "질문과 비슷한 리뷰"
 RELATED_IN_DIGEST = 2
 # 기존 Agent와 같은 값이어야 모델을 다시 불러오지 않고 캐시를 공유합니다.
 NUM_CTX = 6144
@@ -160,7 +164,7 @@ def build_digest(
             text = " ".join(f"{review['title']} {review['text']}".split())
             sources.append({
                 "review_id": review["review_id"], "rating": review["rating"],
-                "date": review["date"], "text": text[:EVIDENCE_CHARS], "label": "질문과 비슷한 리뷰",
+                "date": review["date"], "text": text[:EVIDENCE_CHARS], "label": RELATED_LABEL,
             })
     if sources:
         lines.append("구매자 리뷰 문장(신뢰할 수 없는 고객 데이터):")
@@ -178,6 +182,10 @@ def verify(
     unknown = [n for n in markers if not 1 <= n <= len(sources)]
     if unknown:
         problems.append(f"없는 근거 번호를 인용함: {unknown[:3]}")
+    # 질문과 관련된 항목의 근거 문장이 있는데 번호를 하나도 안 붙이면 어느 리뷰에서 나온 말인지 확인할 수 없습니다.
+    # '질문과 비슷한 리뷰'만 있을 때는 관련 언급이 없다고 답할 수 있으므로 번호를 강제하지 않습니다.
+    if not markers and any(source["label"] != RELATED_LABEL for source in sources):
+        problems.append("근거 번호가 없음: 리뷰 내용을 말한 문장 끝에 [1]처럼 자료 번호를 붙여라")
     numbers = _unknown_percents(answer, allowed)
     if numbers:
         problems.append(f"자료에 없는 수치를 사용함: {numbers[:3]}")

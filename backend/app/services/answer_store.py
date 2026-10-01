@@ -26,7 +26,7 @@ from backend.app.schemas.catalog import (
     FaqResponse,
 )
 from backend.app.services.catalog import CatalogService, ProductNotFoundError
-from backend.app.services.fast_answer import FAST_PROMPT_VERSION
+from backend.app.services.fast_answer import FAST_PROMPT_VERSIONS_READABLE
 from backend.app.services.review_agent import AGENT_PROMPT_VERSION, ReviewQuestionAgent
 
 # 분석 수가 이만큼 이하로 바뀌면 저장 답을 그대로 씁니다.
@@ -50,7 +50,7 @@ FAQ_QUESTIONS: tuple[tuple[str, str, str], ...] = (
     ("fit_for", "추천 대상", "어떤 사람에게 잘 맞나요?"),
 )
 # 저장 답을 찾을 때 인정하는 답변 방식(같은 질문이면 가장 최근 답을 씁니다)
-STORED_PROMPT_VERSIONS = (AGENT_PROMPT_VERSION, FAST_PROMPT_VERSION)
+STORED_PROMPT_VERSIONS = (AGENT_PROMPT_VERSION, *FAST_PROMPT_VERSIONS_READABLE)
 
 
 def question_key(question: str) -> str:

@@ -111,6 +111,25 @@ def test_verify_rejects_unknown_citation_number_percent_and_internal_terms() -> 
     assert "없는 근거 번호" in joined and "없는 수치" in joined and "내부 용어" in joined
 
 
+def test_verify_requires_a_citation_when_sources_exist() -> None:
+    _, sources, allowed = build_digest(QUICK, REPORT)
+    markers, problems = verify("다이얼이 고장 났다는 의견이 많아요.", sources, allowed, None)
+    assert markers == [] and any("근거 번호가 없음" in problem for problem in problems)
+    # 근거 리뷰가 없거나 '질문과 비슷한 리뷰'만 있으면 관련 언급이 없다고 답할 수 있으므로 통과합니다.
+    assert verify("관련 언급을 찾지 못했어요.", [], allowed, None) == ([], [])
+    related_only = [source for source in sources if source["label"] == fast_answer.RELATED_LABEL]
+    assert related_only and verify("관련 언급을 찾지 못했어요.", related_only, allowed, None) == ([], [])
+
+
+def test_stream_retries_answer_without_citation_then_accepts_cited_one() -> None:
+    stream = _fake_stream("다이얼이 고장 났다는 의견이 많아요.", "다이얼이 고장 났다는 의견이 있어요 [1].")
+    events = list(_service(stream).stream("p", "고장이 잦나요?"))
+    assert any(event["type"] == "retry" for event in events)
+    result = events[-1]["result"]
+    assert result["status"] == "answered" and [c["review_id"] for c in result["citations"]] == ["r1"]
+    assert "근거 번호가 없음" in stream.calls[1][1]["content"]
+
+
 class _FakeTools:
     """MCP 도구 대신 정해 둔 즉시 답·리포트를 돌려줍니다(인용 번호 대응을 확인하기 위해)."""
 
